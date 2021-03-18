@@ -1,4 +1,5 @@
 #include "shell.h"
+size_t max_cmd_sz = CMD_SZ + 1;
 
 /*  Use    - Processes input shell command to a proper format
     Input  - 
@@ -29,7 +30,7 @@ bool process_command(bool *isfg, char * command){
 
 
 /*  Use    - Shell Driver function
-    Runs the main shell program
+             Runs the main shell program
 */
 int main(int argc, char* argv[]){
     int num = 1;
@@ -70,7 +71,7 @@ int main(int argc, char* argv[]){
 			exit(EXIT_FAILURE);
 		}
 		else if(child == 0){ /* Child */
-			if (close(p[1]) == -1) /*Close unused write end */
+			if (close(p[1]) == -1) /* Close unused write end */
                 exit(EXIT_FAILURE); 
             int dummy;
             /* Wait till child sees EOF from pipe */
@@ -79,7 +80,7 @@ int main(int argc, char* argv[]){
             if (close(p[0]) == -1) 
                 exit(EXIT_FAILURE);
 
-            // sleep(2);
+            sleep(5);
             exit(0);
             /* Incomplete from here */
 			/* Start execution of command */
