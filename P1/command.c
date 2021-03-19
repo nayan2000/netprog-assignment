@@ -11,8 +11,28 @@ char* substr(char* s, int start, int end) {
 
 token_list* addCommand(token_list* list, char* c) {
     token_node* node = (token_node*) malloc(sizeof(token_node));
-    node->token = (char*) malloc(sizeof(c));
-    strcpy(node->token, c);
+    // TRIM WHITE SPACE FROM SIDES IN COMMAND
+    int status = 0, l_pos, r_pos, com_size;
+    for(int i = 0;; ++i) {
+        if(status == 0 && c[i] != ' ') { // FOUND FIRST LEFT CHAR
+            l_pos = i;
+            status = 1;
+        }
+        if(status == 1 && c[i] == '\0') { // END OF STRING
+            r_pos = i - 1;
+            while(c[r_pos] == ' ') { // GO BACK TO FIND LAST RIGHT CHAR
+                r_pos--;
+            }
+            break;
+        }
+    }
+
+    com_size = r_pos - l_pos + 1;
+    node->token = (char*) malloc(com_size);
+    for(int i = l_pos; i <= r_pos; ++i) {
+        (node->token)[i - l_pos] = c[i];
+    }
+
     node->next = NULL;
 
     if(list->size == 0) { // FIRST NODE
