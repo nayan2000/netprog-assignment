@@ -2,8 +2,8 @@
 #ifndef COMMAND_H 
 #define COMMAND_H
 
-#include "common.h"
-
+#include "basic.h"
+#include "job_table.h"
 typedef struct token_stream{
     char* token;
     struct tokens* next;
@@ -14,8 +14,19 @@ typedef struct token_list{
     int size;
 }token_list;
 
+typedef enum pipe_type{
+    SPIPE, DPIPE, TPIPE
+}pipe_type;
+
+typedef struct pipe_details{
+    pipe_type t;
+    int rfd;
+    int wfd;
+}pipe_details;
+
 /* Variable Declarations */
 extern size_t max_cmd_sz;
+extern command_details* j_table;
 
 /* Function Declarations */
 

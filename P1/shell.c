@@ -1,6 +1,5 @@
 #include "shell.h"
 size_t max_cmd_sz = CMD_SZ + 1;
-
 /*  Use    - Processes input shell command to a proper format
     Input  - 
         bool  : isfg    - Pointer to variable indicating fg or bg command
@@ -46,7 +45,6 @@ int main(int argc, char* argv[]){
 
         bool isfg = true;
         char *command = (char*)malloc(sizeof(char)*max_cmd_sz);
-
         /*Primitive processing */
         bool ignore = process_command(&isfg, command);
         if(ignore) continue;
@@ -76,7 +74,14 @@ int main(int argc, char* argv[]){
             int dummy;
             /* Wait till child sees EOF from pipe */
 			int n = read(p[0], &dummy, 1);
-
+            
+            command_details* cmd_rec = (command_details*)malloc(sizeof(command_details));   
+            cmd_rec->pgid = getpid();
+            cmd_rec->cmd = strdup(command);
+            cmd_rec->type = isfg? FG : BG;
+            cmd_rec->status = RUN;
+            add_entry(cmd_rec);
+            
             if (close(p[0]) == -1) 
                 exit(EXIT_FAILURE);
 
@@ -124,16 +129,20 @@ int main(int argc, char* argv[]){
 
             /* If it is a fg command, shell process must wait for it ro complete exexution */
             if(isfg){
-                for (;;) { 
+                for (;!WIFSIGNALED(status) && !WIFSTOPPED(status) && !WIFEXITED(status);) { 
                     pid_t leader = waitpid(-1 * child, &status, WUNTRACED); 
                     if(leader == -1){
                         break;
                     }
-                    
                 }
-                if(WIFEXITED(status) || WIFSIGNALED(status)) {
-
-                }
+                if(WIFSTOPPED(status)) {
+					update_entry_by_pgid(child, BG, STOP);
+			 	}
+			 
+			 	/* Foreground process gets terminated */
+			 	else if(WIFEXITED(status) || WIFSIGNALED(status)) {
+					remove_entry_by_pgid(child);
+				 }
                 /* fg command process leader exits */
                 /* Set shell as foreground process for the terminal again */
                 tcsetpgrp(STDIN_FILENO, getpid());
