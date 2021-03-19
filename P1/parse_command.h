@@ -4,7 +4,7 @@
 
 #include "basic.h"
 #include "job_table.h"
-typedef struct token_stream{
+typedef struct token_node{
     char* token;
     struct token_node* next;
 }token_node;
@@ -26,7 +26,7 @@ typedef struct pipe_details{
 
 /* Variable Declarations */
 extern size_t max_cmd_sz;
-extern command_details* j_table;
+// extern command_details* j_table[MAX_CMD];
 
 /* Function Declarations */
 char* substr(char*, int, int);

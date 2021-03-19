@@ -58,7 +58,7 @@ command_details* get_by_pgid(pid_t pgid){
 }
 
 
-bool update_entry_by_pgid(pid_t pgid, c_type type, c_stat status){
+bool update_entry_by_pgid(pid_t pgid, j_type type, j_stat status){
     command_details* cmd_rec = get_by_pgid(pgid);
 
     if(cmd_rec != NULL){

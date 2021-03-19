@@ -1,5 +1,5 @@
 #include "shell.h"
-#include "command.c"
+#include "parse_command.h"
 size_t max_cmd_sz = CMD_SZ + 1;
 /*  Use    - Processes input shell command to a proper format
     Input  - 
@@ -25,8 +25,9 @@ bool process_command(bool *isfg, char * command){
         *isfg = false;
     }
     printf("%s\n", command);
-    token_list* list = parseCommand(command);
-    printList(list);
+    // token_list* list = parseCommand(command);
+    // printList(list);
+    fflush(stdout);
     return ignore = false;
 }
 
@@ -87,7 +88,7 @@ int main(int argc, char* argv[]){
             
             if (close(p[0]) == -1) 
                 exit(EXIT_FAILURE);
-
+            printf("gehwe");
             sleep(5);
             exit(0);
             /* Incomplete from here */
@@ -132,7 +133,7 @@ int main(int argc, char* argv[]){
 
             /* If it is a fg command, shell process must wait for it ro complete exexution */
             if(isfg){
-                for (;!WIFSIGNALED(status) && !WIFSTOPPED(status) && !WIFEXITED(status);) { 
+                for (;;) { 
                     pid_t leader = waitpid(-1 * child, &status, WUNTRACED); 
                     if(leader == -1){
                         break;
