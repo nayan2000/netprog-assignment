@@ -1,4 +1,5 @@
 #include "shell.h"
+#include "command.c"
 size_t max_cmd_sz = CMD_SZ + 1;
 /*  Use    - Processes input shell command to a proper format
     Input  - 
@@ -24,6 +25,8 @@ bool process_command(bool *isfg, char * command){
         *isfg = false;
     }
     printf("%s\n", command);
+    token_list* list = parseCommand(command);
+    printList(list);
     return ignore = false;
 }
 

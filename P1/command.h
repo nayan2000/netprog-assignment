@@ -6,11 +6,11 @@
 #include "job_table.h"
 typedef struct token_stream{
     char* token;
-    struct tokens* next;
-}token_stream;
+    struct token_node* next;
+}token_node;
 
 typedef struct token_list{
-    token_stream* head;
+    token_node* head;
     int size;
 }token_list;
 
@@ -29,6 +29,9 @@ extern size_t max_cmd_sz;
 extern command_details* j_table;
 
 /* Function Declarations */
-
+char* substr(char*, int, int);
+token_list* addCommand(token_list*, char*);
+void printList(token_list*);
+token_list* parseCommand(char*);
 
 #endif
