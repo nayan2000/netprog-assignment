@@ -48,6 +48,21 @@ int main(int argc, char* argv[]){
         /*Primitive processing */
         bool ignore = process_command(&isfg, command);
         if(ignore) continue;
+        bool ret = run_job(command);
+        int status;
+        for(int i = 0; i < MAX_CMD; i++){
+            if(j_table[i]){
+                if(j_table[i]->type == FG){
+                    printf("Inside Wait:B4\n");
+                    waitpid(j_table[i]->pgid, &status, WUNTRACED);
+                    printf("Inside Wait:After\n");
+                    break;
+                }
+            }
+        }
+        tcsetpgrp(STDIN_FILENO, getpid());
+        signal(SIGTTOU, SIG_DFL);
+        if(ret) continue;
         
         /* The shell should now make a new process group for each command
         and exec() it using a new child process */
@@ -61,6 +76,7 @@ int main(int argc, char* argv[]){
 
 		int p[2];
 		pipe(p);
+        command_details* cmd_rec = (command_details*)malloc(sizeof(command_details));   
 
 		pid_t child = fork();
 
@@ -74,32 +90,24 @@ int main(int argc, char* argv[]){
             int dummy;
             /* Wait till child sees EOF from pipe */
 			int n = read(p[0], &dummy, 1);
-            if(isfg){
-                command_details* cmd_rec = (command_details*)malloc(sizeof(command_details));   
-                cmd_rec->pgid = child == 0? getpid() : child;
-                cmd_rec->cmd = strdup(command);
-                cmd_rec->type = isfg? FG : BG;
-                cmd_rec->status = RUN;
-                add_entry(cmd_rec);
-                printf("Entry Added \n");
-            }
             if (close(p[0]) == -1) 
                 exit(EXIT_FAILURE);
 			/* Start execution of command */
             if(!isfg){
-                while(1){
-                    
-                }
+                int i = 0;
+                remove_entry_by_pgid(getpid());
                 exit(0);
             }
-            run_job(command);
+            else{
+                sleep(5);
+            }
+            // run_job(command);
             exit(EXIT_SUCCESS);
 		}
         else{ /* Parent */
             close(p[0]); /* Close unused read end */
-
+        
             if(!isfg){
-                command_details* cmd_rec = (command_details*)malloc(sizeof(command_details));   
                 cmd_rec->pgid = child == 0? getpid() : child;
                 cmd_rec->cmd = strdup(command);
                 cmd_rec->type = isfg? FG : BG;
@@ -151,6 +159,7 @@ int main(int argc, char* argv[]){
                         break;
                     }
                 }
+                printf("We come here\n");
                 if(WIFSTOPPED(status)) {
 					update_entry_by_pgid(child, BG, STOP);
 			 	}
@@ -161,6 +170,16 @@ int main(int argc, char* argv[]){
 				}
                 /* fg command process leader exits */
                 /* Set shell as foreground process for the terminal again */
+                for(int i = 0; i < MAX_CMD; i++){
+                    if(j_table[i]){
+                        if(j_table[i]->type == FG){
+                            printf("Inside Wait:B4\n");
+                            waitpid(j_table[i]->pgid, &status, WUNTRACED);
+                            printf("Inside Wait:After\n");
+                            break;
+                        }
+                    }
+                }
                 tcsetpgrp(STDIN_FILENO, getpid());
 				signal(SIGTTOU, SIG_DFL);
             }

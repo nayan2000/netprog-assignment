@@ -28,7 +28,7 @@ char** break_loner_cmds(char* cmd){
     free(process);
     return broken_cmd;
 }
-void run_job(char* command){
+bool run_job(char* command){
     token_list *list = parse_cmd(command);
     if(list->size == 1){ /*possibly fg, bg, shortcut*/
         token_node* node = list->head;
@@ -50,11 +50,11 @@ void run_job(char* command){
             for(int i = 0; i < MAX_SIZE_SINGLE_CMD; i++)
                 if(broken_cmd[i]) free(broken_cmd[i]);
             free(broken_cmd);
-            return;
+            return true;
         }
         
     }
-
+    return false;
 }
 
 // int main(){

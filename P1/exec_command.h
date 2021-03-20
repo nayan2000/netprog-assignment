@@ -13,5 +13,5 @@ extern command_details* j_table[MAX_CMD];
 
 void print_broken_cmd(char** args);
 char** break_loner_cmds(char* cmd);
-void run_job(char* command);
+bool run_job(char* command);
 #endif

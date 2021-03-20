@@ -30,6 +30,7 @@ void make_foreground(char* broken_cmd){
     int job_no = atoi(temp+1);
     printf("Job no : %d\n", job_no);
     command_details* cmd_rec = get_by_id(job_no);
+    printf(PURPLE"%2d | %20s | %8d | %3d | %3d\n"RESET, job_no, cmd_rec->cmd, cmd_rec->pgid, cmd_rec->status, cmd_rec->type);
     if(cmd_rec == NULL){
         printf(RED"FATAL ERROR : JOB DOES NOT EXIST\n"RESET);
         exit(EXIT_FAILURE);
@@ -42,7 +43,6 @@ void make_foreground(char* broken_cmd){
 		printf(RED"FATAL ERROR : CAN'T RESTART JOB IN FOREGROUND\n"RESET);
         exit(EXIT_FAILURE);
 	}
-	update_entry_by_pgid(cmd_rec->pgid, FG, RUN);
     signal(SIGTTOU, SIG_IGN);
     if(isatty(STDIN_FILENO)){
         if(tcsetpgrp(STDIN_FILENO, cmd_rec->pgid) == -1) {
@@ -54,26 +54,15 @@ void make_foreground(char* broken_cmd){
         printf("FATAL ERROR: CAN'T CREATE A NEW PROCESS GROUP\n");
         exit(EXIT_FAILURE);
     }
-        printf("Yes it is a foreground job now\n");
+    update_entry_by_pgid(cmd_rec->pgid, FG, RUN);
+    command_details* cmd_rec1 = get_by_id(job_no);
+    printf(PURPLE"%2d | %20s | %8d | %3d | %3d\n"RESET, job_no, cmd_rec1->cmd, cmd_rec1->pgid, cmd_rec1->status, cmd_rec1->type);
+    printf("Yes it is a foreground job now\n");
 
-    int status;
-    for(;;){ 
-        pid_t leader = waitpid(cmd_rec->pgid, &status, WUNTRACED); 
-        if(leader == -1){
-            break;
-        }
-    }
-    if(WIFSTOPPED(status)) {
-        update_entry_by_pgid(cmd_rec->pgid, BG, STOP);
-    }
-    
-    /* Foreground process gets terminated */
-    else if(WIFEXITED(status) || WIFSIGNALED(status)) {
-        remove_entry_by_pgid(cmd_rec->pgid);
-    }
+   
     /* fg command process leader exits */
     /* Set shell as foreground process for the terminal again */
-    tcsetpgrp(STDIN_FILENO, getpgid(0));
+    // tcsetpgrp(STDIN_FILENO, getpgid(0));
     signal(SIGTTOU, SIG_DFL);
 }
 
