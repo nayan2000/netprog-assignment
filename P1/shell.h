@@ -4,8 +4,10 @@
 
 #include "basic.h"
 #include "job_table.h"
+#include "exec_command.h"
 
-#define PROMPT BLUE">> "RESET
+
+#define PROMPT BLUE"\n>> "RESET
 #define CMD_SZ 512
 
 

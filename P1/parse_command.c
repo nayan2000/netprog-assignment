@@ -1,4 +1,4 @@
-#include "command.h"
+#include "parse_command.h"
 
 char* substr(char* s, int start, int end) {
     char* subs = (char*) malloc(end - start);
@@ -9,7 +9,7 @@ char* substr(char* s, int start, int end) {
     return subs;
 }
 
-token_list* addCommand(token_list* list, char* c) {
+token_list* add_command(token_list* list, char* c) {
     token_node* node = (token_node*) malloc(sizeof(token_node));
     // TRIM WHITE SPACE FROM SIDES IN COMMAND
     int status = 0, l_pos, r_pos, com_size;
@@ -48,7 +48,7 @@ token_list* addCommand(token_list* list, char* c) {
     return list;
 }
 
-void printList(token_list* list) {
+void print_list(token_list* list) {
     token_node* ptr = list->head;
     while(ptr != NULL) {
         printf("(%s)->", ptr->token);
@@ -57,7 +57,7 @@ void printList(token_list* list) {
     printf("\n");
 }
 
-token_list* parseCommand(char* command) {
+token_list* parse_cmd(char* command) {
     token_list* list = (token_list*) malloc(sizeof(token_list));
     char* c;
     int start = 0;
@@ -67,28 +67,34 @@ token_list* parseCommand(char* command) {
             pipe = true;
             c = substr(command, start, i);
             start = i + 1;
-            list = addCommand(list, c);
-            list = addCommand(list, "|");
+            list = add_command(list, c);
+            list = add_command(list, "|");
         } else if(command[i] == '|' && command[i+1] == '|' && command[i+2] != '|') { // DOUBLE PIPE
             pipe = true;
             c = substr(command, start, i);
             start = i + 2;
-            list = addCommand(list, c);
-            list = addCommand(list, "||");
+            list = add_command(list, c);
+            list = add_command(list, "||");
             i++;
         } else if(command[i] == '|' && command[i+1] == '|' && command[i+2] == '|') { // TRIPLE PIPE
             pipe = true;
             c = substr(command, start, i);
             start = i + 3;
-            list = addCommand(list, c);
-            list = addCommand(list, "|||");
+            list = add_command(list, c);
+            list = add_command(list, "|||");
             i += 2;
         } else if(command[i] == '\0') { // LAST COMMAND
             c = substr(command, start, i);
-            list = addCommand(list, c);
+            list = add_command(list, c);
             break;
         }
     }
 
     return list;
 }
+
+// int main(){
+//     char *command = "fg %1";
+//     token_list * list = parse_cmd(command);
+//     print_list(list);
+// }

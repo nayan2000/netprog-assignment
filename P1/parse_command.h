@@ -1,6 +1,6 @@
 /* Prevent accidental double inclusion */
-#ifndef COMMAND_H 
-#define COMMAND_H
+#ifndef PARSE_COMMAND_H 
+#define PARSE_COMMAND_H
 
 #include "basic.h"
 #include "job_table.h"
@@ -25,13 +25,13 @@ typedef struct pipe_details{
 }pipe_details;
 
 /* Variable Declarations */
-extern size_t max_cmd_sz;
+// extern size_t max_cmd_sz;
 // extern command_details* j_table[MAX_CMD];
 
 /* Function Declarations */
 char* substr(char*, int, int);
-token_list* addCommand(token_list*, char*);
-void printList(token_list*);
-token_list* parseCommand(char*);
+token_list* add_command(token_list*, char*);
+void print_list(token_list*);
+token_list* parse_cmd(char*);
 
 #endif

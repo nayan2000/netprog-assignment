@@ -1,5 +1,4 @@
 #include "shell.h"
-#include "parse_command.h"
 size_t max_cmd_sz = CMD_SZ + 1;
 /*  Use    - Processes input shell command to a proper format
     Input  - 
@@ -25,9 +24,6 @@ bool process_command(bool *isfg, char * command){
         *isfg = false;
     }
     printf("%s\n", command);
-    // token_list* list = parseCommand(command);
-    // printList(list);
-    fflush(stdout);
     return ignore = false;
 }
 
@@ -78,27 +74,41 @@ int main(int argc, char* argv[]){
             int dummy;
             /* Wait till child sees EOF from pipe */
 			int n = read(p[0], &dummy, 1);
-            
-            command_details* cmd_rec = (command_details*)malloc(sizeof(command_details));   
-            cmd_rec->pgid = getpid();
-            cmd_rec->cmd = strdup(command);
-            cmd_rec->type = isfg? FG : BG;
-            cmd_rec->status = RUN;
-            add_entry(cmd_rec);
-            
+            if(isfg){
+                command_details* cmd_rec = (command_details*)malloc(sizeof(command_details));   
+                cmd_rec->pgid = child == 0? getpid() : child;
+                cmd_rec->cmd = strdup(command);
+                cmd_rec->type = isfg? FG : BG;
+                cmd_rec->status = RUN;
+                add_entry(cmd_rec);
+                printf("Entry Added \n");
+            }
             if (close(p[0]) == -1) 
                 exit(EXIT_FAILURE);
-            printf("gehwe");
-            sleep(5);
-            exit(0);
-            /* Incomplete from here */
 			/* Start execution of command */
-            
-            
+            if(!isfg){
+                while(1){
+                    
+                }
+                exit(0);
+            }
+            run_job(command);
+            exit(EXIT_SUCCESS);
 		}
         else{ /* Parent */
             close(p[0]); /* Close unused read end */
 
+            if(!isfg){
+                command_details* cmd_rec = (command_details*)malloc(sizeof(command_details));   
+                cmd_rec->pgid = child == 0? getpid() : child;
+                cmd_rec->cmd = strdup(command);
+                cmd_rec->type = isfg? FG : BG;
+                cmd_rec->status = RUN;
+                add_entry(cmd_rec);
+                printf("Entry Added \n");
+            }
+            
+            
             /*Create a new process group for the command */
 			if(setpgid(child, child) == -1) {
 				printf("FATAL ERROR: CAN'T CREATE A NEW PROCESS GROUP\n");
@@ -106,12 +116,14 @@ int main(int argc, char* argv[]){
 			}
 
             /* Print Child Details */
-            int curr_pid = getpid();
+            int curr_pid = child;
 			printf(YELLOW"Command Details - Process Group %d:\n", num);
             num++;
 			printf("\tPID  : %d\n", curr_pid);
 			printf("\tPGID : %d\n", getpgid(curr_pid));
 			printf("\n"RESET);
+            
+            
 
             /* Set child as the foreground process group for the terminal*/
 			if (isfg){
@@ -146,7 +158,7 @@ int main(int argc, char* argv[]){
 			 	/* Foreground process gets terminated */
 			 	else if(WIFEXITED(status) || WIFSIGNALED(status)) {
 					remove_entry_by_pgid(child);
-				 }
+				}
                 /* fg command process leader exits */
                 /* Set shell as foreground process for the terminal again */
                 tcsetpgrp(STDIN_FILENO, getpid());
