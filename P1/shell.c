@@ -1,5 +1,6 @@
 #include "shell.h"
 size_t max_cmd_sz = CMD_SZ + 1;
+
 /*  Use    - Processes input shell command to a proper format
     Input  - 
         bool  : isfg    - Pointer to variable indicating fg or bg command
@@ -11,6 +12,7 @@ bool process_command(bool *isfg, char * command){
     bool ignore;
 
     /* Get command from the terminal */
+    memset(command, '\0',sizeof(command));
     int cmd_sz = getline(&command, &max_cmd_sz, stdin);
     if(cmd_sz == -1 || cmd_sz == 0 || strcmp(command, "\n") == 0)
         return ignore = true;
@@ -42,25 +44,31 @@ int main(int argc, char* argv[]){
     while(1){  
         printf(PROMPT);
         fflush(stdout);
-
         bool isfg = true;
         char *command = (char*)malloc(sizeof(char)*max_cmd_sz);
         /*Primitive processing */
         bool ignore = process_command(&isfg, command);
         if(ignore) continue;
+
+        /* Check for singular fg, bg, sc, and jobs command */
         bool ret = run_job(command);
         int status;
+
         for(int i = 0; i < MAX_CMD; i++){
             if(j_table[i]){
                 if(j_table[i]->type == FG){
-                    printf("Inside Wait:B4\n");
-                    waitpid(j_table[i]->pgid, &status, WUNTRACED);
-                    printf("Inside Wait:After\n");
+                    while(waitpid(-1*j_table[i]->pgid, &status, WUNTRACED)>0);
+                    remove_entry_by_pgid(j_table[i]->pgid);
                     break;
                 }
             }
         }
         tcsetpgrp(STDIN_FILENO, getpid());
+        fflush(stdin);
+        if(/*cmd_rec->status == STOP &&*/ kill(getpid(), SIGCONT) < 0) {
+            printf(RED"FATAL ERROR : CAN'T RESTART JOB IN FOREGROUND\n"RESET);
+            exit(EXIT_FAILURE);
+	    }
         signal(SIGTTOU, SIG_DFL);
         if(ret) continue;
         
@@ -92,16 +100,13 @@ int main(int argc, char* argv[]){
 			int n = read(p[0], &dummy, 1);
             if (close(p[0]) == -1) 
                 exit(EXIT_FAILURE);
+
 			/* Start execution of command */
-            if(!isfg){
+            if(!isfg){   /* Simulate working of bg jobs */
                 int i = 0;
-                remove_entry_by_pgid(getpid());
+                sleep(5);
                 exit(0);
             }
-            else{
-                sleep(5);
-            }
-            // run_job(command);
             exit(EXIT_SUCCESS);
 		}
         else{ /* Parent */
@@ -159,7 +164,6 @@ int main(int argc, char* argv[]){
                         break;
                     }
                 }
-                printf("We come here\n");
                 if(WIFSTOPPED(status)) {
 					update_entry_by_pgid(child, BG, STOP);
 			 	}
@@ -170,16 +174,6 @@ int main(int argc, char* argv[]){
 				}
                 /* fg command process leader exits */
                 /* Set shell as foreground process for the terminal again */
-                for(int i = 0; i < MAX_CMD; i++){
-                    if(j_table[i]){
-                        if(j_table[i]->type == FG){
-                            printf("Inside Wait:B4\n");
-                            waitpid(j_table[i]->pgid, &status, WUNTRACED);
-                            printf("Inside Wait:After\n");
-                            break;
-                        }
-                    }
-                }
                 tcsetpgrp(STDIN_FILENO, getpid());
 				signal(SIGTTOU, SIG_DFL);
             }

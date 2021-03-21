@@ -1,11 +1,12 @@
 #include "parse_command.h"
 
 char* substr(char* s, int start, int end) {
-    char* subs = (char*) malloc(end - start);
-    for(int i = start; i < end; ++i) {
+    char* subs = (char*) malloc(sizeof(char)*(end - start + 1));
+    int i;
+    for(i = start; i < end; ++i) {
         subs[i - start] = s[i];
     }
-
+    subs[i-start] = '\0';
     return subs;
 }
 
@@ -28,11 +29,12 @@ token_list* add_command(token_list* list, char* c) {
     }
 
     com_size = r_pos - l_pos + 1;
-    node->token = (char*) malloc(com_size);
-    for(int i = l_pos; i <= r_pos; ++i) {
+    node->token = (char*) malloc(sizeof(char)*(com_size+1));
+    int i;
+    for(i = l_pos; i <= r_pos; ++i) {
         (node->token)[i - l_pos] = c[i];
     }
-
+    (node->token)[i - l_pos] = '\0';
     node->next = NULL;
 
     if(list->size == 0) { // FIRST NODE
