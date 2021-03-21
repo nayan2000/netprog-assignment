@@ -12,10 +12,12 @@ void handler(int sig){
     if(sig == SIGCHLD){
         struct my_msgbuf buf;
         int read;
-        if(read = msgrcv(msqid, &(buf), 2*sizeof(buf.mtext), 1, 0) == -1){
+        if(read = msgrcv(msqid, &(buf), sizeof(buf.mtext), 1, 0) == -1){
             perror ("msgrcv");
             exit(EXIT_FAILURE);
         }
+        int i = pgid_to_id(buf.mtext);
+        printf("\n[%d] \t Job Terminated\t %s\n", i, j_table[i]->cmd);
         remove_entry_by_pgid(buf.mtext);
     }
 }
