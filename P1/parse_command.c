@@ -37,11 +37,11 @@ token_list* add_command(token_list* list, char* c) {
     (node->token)[i - l_pos] = '\0';
     node->next = NULL;
 
-    if(list->size == 0) { // FIRST NODE
+    if(list->size == 0){ // FIRST NODE
         list->head = node;
-    } else {
+    }else{
         token_node* ptr = list->head;
-        for(int i = 0; i < list->size - 1; ++i) {
+        for(int i = 0; i < list->size - 1; ++i){
             ptr = ptr->next;
         }
         ptr->next = node;
@@ -59,7 +59,7 @@ void print_list(token_list* list) {
     printf("\n");
 }
 
-token_list* parse_cmd(char* command) {
+token_list* parse_cmd(char* command){
     token_list* list = (token_list*) malloc(sizeof(token_list));
     char* c;
     int start = 0;
@@ -71,27 +71,26 @@ token_list* parse_cmd(char* command) {
             start = i + 1;
             list = add_command(list, c);
             list = add_command(list, "|");
-        } else if(command[i] == '|' && command[i+1] == '|' && command[i+2] != '|') { // DOUBLE PIPE
+        }else if(command[i] == '|' && command[i+1] == '|' && command[i+2] != '|') { // DOUBLE PIPE
             pipe = true;
             c = substr(command, start, i);
             start = i + 2;
             list = add_command(list, c);
             list = add_command(list, "||");
             i++;
-        } else if(command[i] == '|' && command[i+1] == '|' && command[i+2] == '|') { // TRIPLE PIPE
+        }else if(command[i] == '|' && command[i+1] == '|' && command[i+2] == '|') { // TRIPLE PIPE
             pipe = true;
             c = substr(command, start, i);
             start = i + 3;
             list = add_command(list, c);
             list = add_command(list, "|||");
             i += 2;
-        } else if(command[i] == '\0') { // LAST COMMAND
+        }else if(command[i] == '\0') { // LAST COMMAND
             c = substr(command, start, i);
             list = add_command(list, c);
             break;
         }
     }
-
     return list;
 }
 
