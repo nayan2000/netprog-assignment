@@ -17,6 +17,8 @@
 #include<sys/types.h>
 #include<fcntl.h>
 #include<sys/ioctl.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 
 #include<signal.h>
 #include<stdio.h>       /* Standard I/O functions */

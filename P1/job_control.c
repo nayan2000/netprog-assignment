@@ -2,7 +2,7 @@
 
 void make_background(char* broken_cmd){
     char* temp = broken_cmd;
-    int job_no = atoi(temp+1);
+    int job_no = atoi(temp + 1);
     printf("Job no : %d\n", job_no);
 
     command_details* cmd_rec = get_by_id(job_no);
@@ -27,10 +27,9 @@ void make_background(char* broken_cmd){
 
 void make_foreground(char* broken_cmd){
     char* temp = broken_cmd;
-    int job_no = atoi(temp+1);
+    int job_no = atoi(temp + 1);
     printf("Job no : %d\n", job_no);
     command_details* cmd_rec = get_by_id(job_no);
-    printf(PURPLE"%2d | %20s | %8d | %3d | %3d\n"RESET, job_no, cmd_rec->cmd, cmd_rec->pgid, cmd_rec->status, cmd_rec->type);
     if(cmd_rec == NULL){
         printf(RED"FATAL ERROR : JOB DOES NOT EXIST\n"RESET);
         exit(EXIT_FAILURE);
@@ -80,6 +79,7 @@ void print_broken_cmd(char** args){
     }
     printf("\n");
 }
+
 char** break_loner_cmds(char* cmd){
     char **broken_cmd = (char**)malloc(MAX_SIZE_SINGLE_CMD * sizeof(char *));
 	char *process = strdup(cmd);
@@ -101,6 +101,7 @@ char** break_loner_cmds(char* cmd){
     free(process);
     return broken_cmd;
 }
+
 bool run_job(char* command){
     token_list *list = parse_cmd(command);
     if(list->size == 1){ /*possibly fg, bg, jobs, shortcut*/
