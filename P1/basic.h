@@ -11,9 +11,6 @@
 #define CYAN "\033[0;36m"
 #define RESET "\033[0m"
 
-/* Constants */
-#define MAX_CMD_SIZE 128
-
 /* Type definitions used by many programs */
 #include<sys/stat.h>
 #include<sys/wait.h>

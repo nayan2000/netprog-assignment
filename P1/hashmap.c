@@ -1,5 +1,5 @@
 #include "hashmap.h"
-char* sc_table[MAX_SC_SIZE];
+char* sc_table[MAX_SC_TABLE_SIZE];
 
 bool add_to_sc_table(int i, char* cmd){
     if(sc_table[i] != NULL){
@@ -37,8 +37,8 @@ bool manage_sc_command(char** broken_cmd){
         return false;
     }
 
-    if(atoi(broken_cmd[2]) >= MAX_SC_SIZE){
-        printf(RED"ERROR: INVALID INDEX - CHOOSE LESS THAN %d\n"RESET, MAX_SC_SIZE);
+    if(atoi(broken_cmd[2]) >= MAX_SC_TABLE_SIZE){
+        printf(RED"ERROR: INVALID INDEX - CHOOSE LESS THAN %d\n"RESET, MAX_SC_TABLE_SIZE);
         return false;
     }
     char *command = strdup(broken_cmd[3]);
@@ -59,7 +59,7 @@ bool manage_sc_command(char** broken_cmd){
 }
 
 void print_sc_table(){
-    for(int i = 0; i < MAX_SC_SIZE; i++){
+    for(int i = 0; i < MAX_SC_TABLE_SIZE; i++){
         if(sc_table[i]){
             fprintf(stderr, "[%d]\t%s\n", i, sc_table[i]);
         }

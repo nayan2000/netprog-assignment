@@ -5,12 +5,12 @@
 #include "job_table.h"
 #include "parse_command.h"
 #include "hashmap.h"
-#define MAX_SIZE_SINGLE_CMD 10
+#define MAX_SIZE_SINGLE_CMD 40
 
 
 extern size_t max_cmd_sz;
 extern command_details* j_table[MAX_CMD];
-extern char* sc_table[MAX_SC_SIZE];
+extern char* sc_table[MAX_SC_TABLE_SIZE];
 
 
 void make_foreground(char* broken_cmd);

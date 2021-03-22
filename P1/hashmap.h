@@ -7,7 +7,7 @@
 #define HASHMAP_H
 
 #include "basic.h"
-#define MAX_SC_SIZE 40
+#define MAX_SC_TABLE_SIZE 40
 
 void print_sc_table();
 bool manage_sc_command(char** broken_cmd);
