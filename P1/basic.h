@@ -19,12 +19,13 @@
 #include<sys/ioctl.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <assert.h>
 
 #include<signal.h>
 #include<stdio.h>       /* Standard I/O functions */
 #include<stdlib.h>      /* Prototypes of commonly used library functions */
 #include<math.h>		/* Math manipulations */
-
+#include<ctype.h>
 #include <unistd.h>     /* Prototypes for many system calls */
 #include <errno.h>      /* Declares errno and defines error constants */
 #include <string.h>     /* Commonly used string-handling functions */

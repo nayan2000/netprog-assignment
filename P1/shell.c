@@ -10,12 +10,13 @@ void remove_queue(){
 
 void handler(int sig){
     if(sig == SIGCHLD){
-        struct my_msgbuf buf;
+        my_msgbuf buf;
         int read;
         if(read = msgrcv(msqid, &(buf), sizeof(buf.mtext), 1, 0) == -1){
             perror ("msgrcv");
             exit(EXIT_FAILURE);
         }
+
         int i = pgid_to_id(buf.mtext);
         printf("\n[%d] \t Job Terminated\t %s\n", i, j_table[i]->cmd);
         remove_entry_by_pgid(buf.mtext);
@@ -139,22 +140,28 @@ int main(int argc, char* argv[]){
                 _exit(EXIT_FAILURE);
 
 			/* Start execution of command */
-            if(!isfg){   /* Simulate working of bg jobs */
-                int i = 0;
+            /* Simulate working of bg jobs */
+            if(!isfg){   
+                
                 sleep(15);
-                struct my_msgbuf chbuf;
+
+                my_msgbuf chbuf;
                 chbuf.mtype = 1;
                 chbuf.mtext = getpid();
                 if (msgsnd(msqid, &chbuf, sizeof(chbuf.mtext), IPC_NOWAIT) == -1){
-                    perror ("MSGSND");
+                    perror("msgsnd");
                 }
                 _exit(0);
             }
+
+            /* Simulate working of foreground jobs */
+
+            /*execute(command);*/
             struct my_msgbuf chbuf;
             chbuf.mtype = 1;
             chbuf.mtext = getpid();
             if (msgsnd(msqid, &chbuf, sizeof(chbuf.mtext), IPC_NOWAIT) == -1){
-                perror ("MSGSND");
+                perror("msgsnd");
             }
             _exit(EXIT_SUCCESS);
 		}
