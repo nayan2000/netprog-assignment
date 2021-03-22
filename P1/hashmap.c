@@ -3,7 +3,7 @@ char* sc_table[MAX_SC_SIZE];
 
 bool add_to_sc_table(int i, char* cmd){
     if(sc_table[i] != NULL){
-        printf("CHOOSE ANOTHER INDEX\n");
+        printf(RED"ERROR: CHOOSE ANOTHER INDEX\n"RESET);
         return false;
     }
     sc_table[i] = strdup(cmd);
@@ -18,11 +18,11 @@ char* lookup_cmd(int i){
 
 bool remove_from_sc_table(int i, char* cmd){
     if(sc_table[i] == NULL){
-        printf("ENTRY DOES NOT EXIST\n");
+        printf(RED"ERROR: ENTRY DOES NOT EXIST\n"RESET);
         return false;
     }
     if(strcmp(cmd, sc_table[i]) != 0){
-        printf("COMMAND AND INDEX MISMATCH\n");
+        printf(RED"ERROR: COMMAND AND INDEX MISMATCH\n"RESET);
         return false;
     }
 
@@ -33,12 +33,12 @@ bool remove_from_sc_table(int i, char* cmd){
 
 bool manage_sc_command(char** broken_cmd){
     if(strcmp(broken_cmd[1], "-i") != 0 && strcmp(broken_cmd[1], "-d")){
-        printf(RED"Invalid Command\n"RESET);
+        printf(RED"ERROR: INVALID COMMAND\n"RESET);
         return false;
     }
 
     if(atoi(broken_cmd[2]) >= MAX_SC_SIZE){
-        printf(RED"Invalid Index : Choose less than %d\n"RESET, MAX_SC_SIZE);
+        printf(RED"ERROR: INVALID INDEX - CHOOSE LESS THAN %d\n"RESET, MAX_SC_SIZE);
         return false;
     }
     char *command = strdup(broken_cmd[3]);

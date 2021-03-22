@@ -7,16 +7,16 @@ void make_background(char* broken_cmd){
 
     command_details* cmd_rec = get_by_id(job_no);
     if(cmd_rec == NULL){
-        printf(RED"FATAL ERROR : JOB DOES NOT EXIST\n"RESET);
-        exit(EXIT_FAILURE);
+        printf(RED"ERROR : JOB DOES NOT EXIST\n"RESET);
+        return;
     }
     if(cmd_rec->status != STOP) {
-		printf(RED"FATAL ERROR : JOB ALREADY RUNNING IN BACKGROUND\n"RESET);
-        exit(EXIT_FAILURE);
+		printf(RED"ERROR : JOB ALREADY RUNNING IN BACKGROUND\n"RESET);
+        return;
 	}
     if(cmd_rec->type != BG) {
-		printf(RED"FATAL ERROR : JOB DOES NOT EXIST IN BACKGROUND\n"RESET);
-        exit(EXIT_FAILURE);
+		printf(RED"ERROR : JOB DOES NOT EXIST IN BACKGROUND\n"RESET);
+        return;
 	}
 	if(kill(cmd_rec->pgid, SIGCONT) < 0) {
 		printf(RED"FATAL ERROR : CAN'T RESTART JOB IN BACKGROUND\n"RESET);
@@ -31,16 +31,16 @@ void make_foreground(char* broken_cmd){
     printf("Job no : %d\n", job_no);
     command_details* cmd_rec = get_by_id(job_no);
     if(cmd_rec == NULL){
-        printf(RED"FATAL ERROR : JOB DOES NOT EXIST\n"RESET);
-        exit(EXIT_FAILURE);
+        printf(RED"ERROR : JOB DOES NOT EXIST\n"RESET);
+        return;
     }
     if(cmd_rec->type != BG) {
-		printf(RED"FATAL ERROR : JOB DOES NOT EXIST IN BACKGROUND\n"RESET);
-        exit(EXIT_FAILURE);
+		printf(RED"ERROR : JOB DOES NOT EXIST IN BACKGROUND\n"RESET);
+        return;
 	}
 	if(/*cmd_rec->status == STOP &&*/ kill(cmd_rec->pgid, SIGCONT) < 0) {
-		printf(RED"FATAL ERROR : CAN'T RESTART JOB IN FOREGROUND\n"RESET);
-        exit(EXIT_FAILURE);
+		printf(RED"ERROR : CAN'T RESTART JOB IN FOREGROUND\n"RESET);
+        return;
 	}
     signal(SIGTTOU, SIG_IGN);
     if(isatty(STDIN_FILENO)){
@@ -54,8 +54,7 @@ void make_foreground(char* broken_cmd){
         exit(EXIT_FAILURE);
     }
     update_entry_by_pgid(cmd_rec->pgid, FG, RUN);
-    printf(GREEN"%2d | %20s | %8d | %3d | %3d\n"RESET, job_no, cmd_rec->cmd, cmd_rec->pgid, cmd_rec->status, cmd_rec->type);
-    printf("Yes, it is a foreground job now\n");
+    // printf(GREEN"%2d | %20s | %8d | %3d | %3d\n"RESET, job_no, cmd_rec->cmd, cmd_rec->pgid, cmd_rec->status, cmd_rec->type);
 }
 
 void print_jobs(){
@@ -93,11 +92,11 @@ char** break_loner_cmds(char* cmd){
 
     int i = 0;
 	while(token != NULL) {
-        // printf("%s ", token);
         broken_cmd[i] = strdup(token);
         token = strtok(NULL, " ");
         i++;
 	}
+    broken_cmd[i] = (char*)NULL;
     free(process);
     return broken_cmd;
 }
@@ -107,7 +106,6 @@ bool run_job(char* command){
     if(list->size == 1){ /*possibly fg, bg, jobs, shortcut*/
         token_node* node = list->head;
         char** broken_cmd = break_loner_cmds(node->token); /* Returns a NULL if not fg, bg, sc, jobs */
-        // print_broken_cmd(broken_cmd);
         if(broken_cmd != NULL){
             if(strcmp(broken_cmd[0], "jobs") == 0){
                 print_jobs();

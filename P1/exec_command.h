@@ -16,6 +16,7 @@ typedef struct my_msgbuf{
 extern int msqid;
 extern key_t key;
 
+char* get_path(char* exe);
 void trim(char *s, bool space);
 char* check_redirection(char* command, int in, int out);
 void redirect_desc_io(int oldfd, int newfd);
