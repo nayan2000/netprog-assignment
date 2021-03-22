@@ -20,10 +20,10 @@ char* get_path(char* exe){
     return NULL;
 }
 
-
-bool exec_curr_cmd(char* command){
+char** tokenise(char* command){
     char *process = strdup(command);
 	int num_tokens = 0;
+    char **args = NULL;
 	if(process != NULL){
 		char *token = strtok(process, " ");
 		num_tokens = 0;
@@ -32,24 +32,131 @@ bool exec_curr_cmd(char* command){
 			token = strtok(NULL, " ");
 		}
 
-		char *args[num_tokens + 1];
+		args = (char**)malloc(sizeof(char*)*(num_tokens + 1));
         process = strdup(command);
         token = strtok(process, " ");
 		int i = 0;
 		while (token != NULL) {
-			args[i++] = token;
+			args[i++] = strdup(token);
 			token = strtok(NULL, " ");
 		}
 		args[i] = (char*)NULL;
-        
-		char *path = get_path(args[0]);
-		if (path == NULL){
-			fprintf(stderr, RED"ERROR : %s: PROGRAM NOT FOUND\n"RESET, args[0]);
-			return false;
-		}
-		if (execv(path, args) == -1) {
-			fprintf(stderr, RED"FATAL ERROR : %s: PROGRAM CANNOT BE EXECUTED\n"RESET, args[0]);
-		}
+    }
+    return args;
+}
+
+bool exec_curr_cmd(char* command, int t, int in, int out){
+    if(t == (int)SPIPE || t == -1){
+        printf(PURPLE"Executing current command : %s\n"RESET, command);
+        preprocess_pipe_io(in, out);
+        command = check_redirection(command, in, out);
+        char** args = tokenise(command);
+        char *path = get_path(args[0]);
+        if (path == NULL){
+            fprintf(stderr, RED"ERROR : %s: PROGRAM NOT FOUND\n"RESET, args[0]);
+            return false;
+        }
+        if (execv(path, args) == -1) {
+            fprintf(stderr, RED"FATAL ERROR : %s: PROGRAM CANNOT BE EXECUTED\n"RESET, args[0]);
+        }
+        _exit(0);
+    }
+    else if(t == (int)DPIPE){
+        char buf[BUFSIZ] = {0};
+        int nread = read(in, buf, BUFSZ);
+        char* process = strdup(command);
+        char *token = strtok(process, ",");
+        int p[2][2];
+        int i = 0;
+        while(token != NULL){
+            if(i >= 2){
+                fprintf(stderr, RED"ERROR: TOO MANY ARGS FOR ||\n"RESET);
+                _exit(EXIT_FAILURE);
+            }
+            pipe(p[i]);
+            pid_t ch = fork();
+           
+            if(ch < 0){
+
+            }
+            else if(ch == 0){
+                close(p[i][1]);
+                command = strdup(token);
+                printf("--------------------------------------------------\n");
+                printf(PURPLE"Executing current command : %s\n"RESET, command);
+
+                preprocess_pipe_io(p[i][0], STDOUT_FILENO);
+                command = check_redirection(command, p[i][0], STDOUT_FILENO);
+                trim(command, true);
+                char** args = tokenise(command);
+                char *path = get_path(args[0]);
+                if (path == NULL){
+                    fprintf(stderr, RED"ERROR : %s: PROGRAM NOT FOUND\n"RESET, args[0]);
+                    return false;
+                }
+                free(command);
+                if (execv(path, args) == -1) {
+                    fprintf(stderr, RED"FATAL ERROR : %s: PROGRAM CANNOT BE EXECUTED\n"RESET, args[0]);
+                }
+                _exit(0);
+            }
+            else{
+                close(p[i][0]);
+                write(p[i][1], buf, nread);
+                close(p[i][1]);
+                wait(NULL);
+            }
+            token = strtok(NULL, ",");
+            i++;
+        }
+    }
+    else if(t == (int)TPIPE){
+        char buf[BUFSIZ] = {0};
+        int nread = read(in, buf, BUFSZ);
+        char* process = strdup(command);
+        char *token = strtok(process, ",");
+        int p[3][2];
+        int i = 0;
+        while(token != NULL){
+            if(i >= 3){
+                fprintf(stderr, RED"ERROR: TOO MANY ARGS FOR |||\n"RESET);
+                _exit(EXIT_FAILURE);
+            }
+            pipe(p[i]);
+            pid_t ch = fork();
+           
+            if(ch < 0){
+
+            }
+            else if(ch == 0){
+                close(p[i][1]);
+                command = strdup(token);
+                printf("--------------------------------------------------\n");
+                printf(PURPLE"Executing current command : %s\n"RESET, command);
+
+                preprocess_pipe_io(p[i][0], STDOUT_FILENO);
+                command = check_redirection(command, p[i][0], STDOUT_FILENO);
+                trim(command, true);
+                char** args = tokenise(command);
+                char *path = get_path(args[0]);
+                if (path == NULL){
+                    fprintf(stderr, RED"ERROR : %s: PROGRAM NOT FOUND\n"RESET, args[0]);
+                    return false;
+                }
+                if (execv(path, args) == -1) {
+                    fprintf(stderr, RED"FATAL ERROR : %s: PROGRAM CANNOT BE EXECUTED\n"RESET, args[0]);
+                }
+                _exit(0);
+            }
+            else{
+                close(p[i][0]);
+                write(p[i][1], buf, nread);
+                close(p[i][1]);
+                wait(NULL);
+            }
+            token = strtok(NULL, ",");
+            i++;
+        }
     }
     return false; /* useless */
 }
@@ -149,12 +256,12 @@ void redirect_desc_io(int oldfd, int newfd) {
 
 bool preprocess_pipe_io(int in, int out){
     int curr_pid = getpid();
-	fprintf(stdout, "\tPID: %d\n", getpid());
-	fprintf(stderr, "\tPGID: %d\n\n", getpgid(curr_pid));
+	fprintf(stdout, GREEN"\tPID: %d\n"RESET, getpid());
+	fprintf(stderr, GREEN"\tPGID: %d\n\n"RESET, getpgid(curr_pid));
 
-	fprintf(stderr, "\tReading from fd %d\n", in);
+	fprintf(stderr, GREEN"\tReading from fd %d\n"RESET, in);
 	redirect_desc_io(in, STDIN_FILENO);
-    fprintf(stderr, "\tWriting to fd %d\n", out);
+    fprintf(stderr, GREEN"\tWriting to fd %d\n"RESET, out);
     fprintf(stderr, "--------------------------------------------------\n");
     redirect_desc_io(out, STDOUT_FILENO);
     return true;
@@ -162,15 +269,15 @@ bool preprocess_pipe_io(int in, int out){
 
 int execute(char* command){
     token_list* list = parse_cmd(command);
-    /* printf("List size : %d\n", list->size); */
-    /* print_list(list); */
+    // printf("List size : %d\n", list->size);
+    // print_list(list);
 
     token_node* temp = list->head;
     int node_no = 1;
     int in = STDIN_FILENO; 
     int prev_t = -1;
     char *pipe_token, *curr_cmd;
-    while(temp->next != NULL){
+    while(temp && temp->next){
         printf("--------------------------------------------------\n");
         curr_cmd = temp->token;
         
@@ -206,13 +313,10 @@ int execute(char* command){
 		}
 
         else if(child == 0){    /* run command in the child process */
-            close(fd[0]);       /* close unused read end of the pipe */
-            printf("Executing current command : %s\n", curr_cmd);
-            preprocess_pipe_io(in, fd[1]);
-            curr_cmd = check_redirection(curr_cmd, in, fd[1]);
-            bool ret = exec_curr_cmd(curr_cmd);
-            
+            close(fd[0]);   
+            bool ret = exec_curr_cmd(curr_cmd, prev_t, in, fd[1]);      
             _exit(!ret);
+
         }
         else{ /* parent */
             assert (child > 0);
@@ -233,18 +337,20 @@ int execute(char* command){
     }
     /* Last Command in Pipeline */
     fprintf(stderr, "--------------------------------------------------\n");
+
+    if(temp == NULL){
+        fprintf(stderr, RED"ERROR: INVALID SYNTAX\n"RESET);
+        _exit(0);
+    }
+    curr_cmd = temp->token;
+
     pid_t child = fork();
     if(child < 0){ /* Error */
         printf(RED"FATAL ERROR: CAN'T CREATE CHILD PROCESS\n"RESET);
-        _exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     else if(child == 0){    /* run command in the child process */
-        curr_cmd = temp->token;
-        printf("Executing current command : %s\n", curr_cmd);
-        preprocess_pipe_io(in, STDOUT_FILENO);
-        
-        curr_cmd = check_redirection(curr_cmd, in, STDOUT_FILENO);
-        bool ret = exec_curr_cmd(curr_cmd);
+        bool ret = exec_curr_cmd(curr_cmd, prev_t, in, STDOUT_FILENO);
         _exit(!ret);
     }
     else{ /* parent */
@@ -253,7 +359,6 @@ int execute(char* command){
             close(in);          /* close unused read end of the previous pipe */    
         int status;
         waitpid(child, &status, WUNTRACED);
-
     }
     return 1;
     

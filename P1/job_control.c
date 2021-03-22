@@ -2,6 +2,10 @@
 
 void make_background(char* broken_cmd){
     char* temp = broken_cmd;
+    if(temp == NULL){
+        fprintf(stderr, RED"ERROR: IMPROPER FORMAT - USAGE = bg %%<job_id>\n"RESET);
+        return;
+    }
     int job_no = atoi(temp + 1);
     printf("Job no : %d\n", job_no);
 
@@ -27,6 +31,10 @@ void make_background(char* broken_cmd){
 
 void make_foreground(char* broken_cmd){
     char* temp = broken_cmd;
+    if(temp == NULL){
+        fprintf(stderr, RED"ERROR: IMPROPER FORMAT - USAGE = fg %%<job_id>\n"RESET);
+        return;
+    }
     int job_no = atoi(temp + 1);
     printf("Job no : %d\n", job_no);
     command_details* cmd_rec = get_by_id(job_no);

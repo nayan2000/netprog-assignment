@@ -1,0 +1,17 @@
+total 136
+-rw-rw-r-- 1 abdulkk49 abdulkk49     0 Mar 23 01:37 a.txt
+-rw-rw-r-- 1 abdulkk49 abdulkk49  1100 Mar 23 01:35 basic.h
+-rw-rw-r-- 1 abdulkk49 abdulkk49  7548 Mar 23 01:35 exec_command.c
+-rw-rw-r-- 1 abdulkk49 abdulkk49   546 Mar 23 01:35 exec_command.h
+-rw-rw-r-- 1 abdulkk49 abdulkk49  1708 Mar 23 01:35 hashmap.c
+-rw-rw-r-- 1 abdulkk49 abdulkk49   415 Mar 23 01:32 hashmap.h
+-rw-rw-r-- 1 abdulkk49 abdulkk49  4323 Mar 23 01:34 job_control.c
+-rw-rw-r-- 1 abdulkk49 abdulkk49   486 Mar 23 01:34 job_control.h
+-rw-rw-r-- 1 abdulkk49 abdulkk49  1397 Mar 23 00:59 job_table.c
+-rw-rw-r-- 1 abdulkk49 abdulkk49   615 Mar 20 00:35 job_table.h
+-rw-rw-r-- 1 abdulkk49 abdulkk49  2917 Mar 23 00:59 parse_command.c
+-rw-rw-r-- 1 abdulkk49 abdulkk49   573 Mar 22 01:33 parse_command.h
+-rwxrwxr-x 1 abdulkk49 abdulkk49 63664 Mar 23 01:36 shell
+-rw-rw-r-- 1 abdulkk49 abdulkk49  9062 Mar 23 00:55 shell.c
+-rw-rw-r-- 1 abdulkk49 abdulkk49   531 Mar 23 01:34 shell.h
+-rw-rw-r-- 1 abdulkk49 abdulkk49   552 Mar 23 01:18 test.c

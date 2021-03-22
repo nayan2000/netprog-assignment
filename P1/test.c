@@ -23,3 +23,4 @@ int main(){
     char* path = get_path("sort");
     puts(path);
 }
+

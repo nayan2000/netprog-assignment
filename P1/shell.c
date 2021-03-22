@@ -100,13 +100,16 @@ bool process_command(bool *isfg, char * command){
         
     /* Remove newline character */
     command[cmd_sz - 1] = '\0';
-
+    char s[3] = {0};
+    s[0] = command[0];
+    s[1] = command[1];
     /* Check if it is a background job */
-    if (command[cmd_sz - 2] == '&') {
+    if(strcmp("sc", s) != 0 && command[cmd_sz - 2] == '&') {
         command[cmd_sz - 2] = '\0';
         *isfg = false;
     }
-    printf("Command : %s\n", command);
+    if(strcmp("quit", command) && strcmp("exit", command))
+        printf("Command : %s\n", command);
     return ignore = false;
 }
 
@@ -134,7 +137,7 @@ int main(int argc, char* argv[]){
         /*Primitive processing */
         bool ignore = process_command(&isfg, command);
         if(ignore) continue;
-        if(strcmp(command, "quit") == 0) exit(EXIT_SUCCESS);
+        if(strcmp(command, "quit") == 0 || strcmp("exit", command) == 0) exit(EXIT_SUCCESS);
         /* Check for singular fg, bg, sc, and jobs command */
         bool ret = run_job(command);
         int status;
