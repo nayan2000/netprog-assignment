@@ -21,6 +21,7 @@ void grim_reaper(int sig){
         remove_entry_by_pgid(buf.mtext);
     }
 }
+
 void shortcut_handler(int sig){
     printf(PURPLE"\n----ENTERED SHORTCUT MODE----\n"RESET);
     printf(YELLOW"\n>"RESET);

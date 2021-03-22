@@ -364,7 +364,3 @@ int execute(char* command){
     
 }
 
-// int main(void) {
-//     char command[] = "ls -l | sort -k9 >> d.txt";
-//     execute(command);
-// }

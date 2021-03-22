@@ -139,12 +139,3 @@ bool run_job(char* command){
     }
     return false;
 }
-
-// int main(){
-//     bool isfg = true;
-//     char *command = (char*)malloc(sizeof(char)*max_cmd_sz);
-//     /*Primitive processing */
-//     bool ignore = process_command(&isfg, command);
-
-//     run_job(command);
-// }

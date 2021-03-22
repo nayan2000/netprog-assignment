@@ -17,10 +17,11 @@ extern command_details* j_table[MAX_CMD];
 
 /* Function Declarations */
 void remove_queue();
-void handler(int sig);
+void grim_reaper(int sig);
+void shortcut_handler(int sig);
 void initial_setup();
-extern bool process_command(bool *isfg, char * command);
-extern int main(int argc, char* argv[]);
+bool process_command(bool *isfg, char * command);
+int main(int argc, char* argv[]);
 
 
 #endif

@@ -93,9 +93,3 @@ token_list* parse_cmd(char* command){
     }
     return list;
 }
-
-// int main(){
-//     char *command = "fg %1";
-//     token_list * list = parse_cmd(command);
-//     print_list(list);
-// }
