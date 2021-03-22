@@ -93,7 +93,7 @@ char* check_redirection(char* command, int in, int out){
         fprintf(stderr, "File name : %s\n", file);
         fprintf(stderr, "\tOriginal Write fd : %d\n", out);
         if (fd < 0) 
-            fprintf(stderr, RED"CANNOT OPEN FILE : %s\n", file);
+            fprintf(stderr, RED"ERROR: CANNOT OPEN FILE : %s\n"RESET, file);
         else {
             fprintf(stderr, "\tRemapped Write fd : %d\n", fd);
             redirect_desc_io(fd, out);
@@ -109,7 +109,7 @@ char* check_redirection(char* command, int in, int out){
         fprintf(stderr, "File name : %s\n", file);
         fprintf(stderr, "\tOriginal Write fd : %d\n", out);
         if (fd < 0) 
-            fprintf(stderr, RED"CANNOT OPEN FILE : %s\n", file);
+            fprintf(stderr, RED"ERROR: CANNOT OPEN FILE : %s\n"RESET, file);
         else {
             fprintf(stderr, "\tRemapped Write fd : %d\n", fd);
             redirect_desc_io(fd, out);
@@ -126,7 +126,7 @@ char* check_redirection(char* command, int in, int out){
         fprintf(stderr, "File name : %s\n", file);
         fprintf(stderr, "\tOriginal fd : %d\n", in);
         if (fd < 0) 
-            fprintf(stderr, RED"CANNOT OPEN FILE : %s\n", file);
+            fprintf(stderr, RED"ERROR: CANNOT OPEN FILE : %s\n"RESET, file);
         else {
             fprintf(stderr, "\tRemapped fd : %d\n", fd);
             redirect_desc_io(fd, in);
