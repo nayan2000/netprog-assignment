@@ -11,12 +11,6 @@
 #define CMD_SZ 512
 #define MSGQ_PATH "./job_control.h"
 
-typedef struct my_msgbuf{
-  long mtype;
-  pid_t mtext;
-}my_msgbuf;
-
-
 /* Variable Declarations */
 extern size_t max_cmd_sz;
 extern command_details* j_table[MAX_CMD];

@@ -3,12 +3,11 @@ size_t max_cmd_sz = CMD_SZ + 1;
 int msqid;
 key_t key;
 
-
 void remove_queue(){
     if (msgctl(msqid, IPC_RMID, NULL) == -1) perror("msgctl"); 
 }
 
-void handler(int sig){
+void grim_reaper(int sig){
     if(sig == SIGCHLD){
         my_msgbuf buf;
         int read;
@@ -18,19 +17,113 @@ void handler(int sig){
         }
 
         int i = pgid_to_id(buf.mtext);
-        printf("\n[%d] \t Job Terminated\t %s\n", i, j_table[i]->cmd);
+        if(i != -1){
+            char *cmd = strdup(j_table[i]->cmd);
+            printf("\n[%d] \t Job Terminated\t %s\n", i, cmd);
+        }
         remove_entry_by_pgid(buf.mtext);
     }
 }
+void shortcut_handler(int sig){
+    printf(PURPLE"----ENTERED SHORTCUT MODE----\n"RESET);
+    printf("\n>");
+    fflush(stdout);
+
+    char inp[4] = {0};
+    scanf("%s", inp);
+    int i = atoi(inp);
+    fflush(stdin);
+    bool isfg = true; 
+    char* command = lookup_cmd(i);
+    if(command == NULL){
+        printf("Command does not exist\n");
+        fflush(stdout);
+        return;
+    }
+    /*Primitive processing */
+    bool ignore = process_command(&isfg, command);
+    if(ignore) return;
+    
+    int p[2];
+    pipe(p);
+    pid_t child = fork();
+
+    if(child < 0){ /* Error */
+        printf(RED"FATAL ERROR: CAN'T CREATE CHILD PROCESS\n"RESET);
+        exit(EXIT_FAILURE);
+    }
+    else if(child == 0){ /* Child */
+        if (close(p[1]) == -1) /* Close unused write end */
+            _exit(EXIT_FAILURE); 
+        int dummy;
+        /* Wait till child sees EOF from pipe */
+        int n = read(p[0], &dummy, 1);
+        if (close(p[0]) == -1) 
+            _exit(EXIT_FAILURE);
+
+        execute(command);
+        my_msgbuf chbuf;
+        chbuf.mtype = 1;
+        chbuf.mtext = getpid();
+        if (msgsnd(msqid, &chbuf, sizeof(chbuf.mtext), IPC_NOWAIT) == -1){
+            perror("msgsnd");
+        }
+        _exit(EXIT_SUCCESS);
+
+    }
+    else{ /* Parent */
+        close(p[0]); /* Close unused read end */
+        /*Create a new process group for the command */
+        if(setpgid(child, child) == -1) {
+            printf("FATAL ERROR: CAN'T CREATE A NEW PROCESS GROUP\n");
+            exit(EXIT_FAILURE);
+        }
+        /* Set child as the foreground process group for the terminal*/
+        if (isfg){
+            signal(SIGTTOU, SIG_IGN);
+            if(isatty(STDIN_FILENO)){
+                if(tcsetpgrp(STDIN_FILENO, child) == -1) {
+                    printf("FATAL ERROR: CAN'T CREATE A NEW PROCESS GROUP\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else{
+                printf("FATAL ERROR: CAN'T CREATE A NEW PROCESS GROUP\n");
+                exit(EXIT_FAILURE);
+            }
+        }
+        /* Synchronise Child */
+        if (close(p[1]) == -1) exit(EXIT_FAILURE);
+        int status;
+
+        /* If it is a fg command, shell process must wait for it ro complete exexution */
+        if(isfg){
+            for (;;) { 
+                pid_t leader = waitpid(child, &status, WUNTRACED); 
+                if(leader == -1){
+                    break;
+                }
+            }
+            if(WIFSTOPPED(status)) {
+                update_entry_by_pgid(child, BG, STOP);
+            }
+            /* fg command process leader exits */
+            /* Set shell as foreground process for the terminal again */
+            tcsetpgrp(STDIN_FILENO, getpid());
+            signal(SIGTTOU, SIG_DFL);
+        }
+    }
+    return;
+}
 
 void initial_setup(){
-    signal(SIGCHLD, handler);
+    signal(SIGCHLD, grim_reaper);
+    signal(SIGINT, shortcut_handler);
     if (atexit(remove_queue) != 0) perror("atexit");
     if((key = ftok(MSGQ_PATH, 'B')) == -1){
         perror("ftok");
         exit(1);
     }
-    printf("%d\n", key);
     if((msqid = msgget(key,  IPC_CREAT | 0644)) == -1){
         perror("msgget");
         exit(1);
@@ -88,7 +181,7 @@ int main(int argc, char* argv[]){
         /*Primitive processing */
         bool ignore = process_command(&isfg, command);
         if(ignore) continue;
-
+        if(strcmp(command, "quit") == 0) exit(EXIT_SUCCESS);
         /* Check for singular fg, bg, sc, and jobs command */
         bool ret = run_job(command);
         int status;
@@ -121,6 +214,7 @@ int main(int argc, char* argv[]){
         using pipes. We can also use signals for synchronisation, but using pipes is easier */
 
 		int p[2];
+        int p_sync[2];
 		pipe(p);
         command_details* cmd_rec = (command_details*)malloc(sizeof(command_details));   
 
@@ -141,28 +235,32 @@ int main(int argc, char* argv[]){
 
 			/* Start execution of command */
             /* Simulate working of bg jobs */
-            if(!isfg){   
+            // if(!isfg){   
                 
-                sleep(15);
+            //     execute(command);
 
-                my_msgbuf chbuf;
-                chbuf.mtype = 1;
-                chbuf.mtext = getpid();
-                if (msgsnd(msqid, &chbuf, sizeof(chbuf.mtext), IPC_NOWAIT) == -1){
-                    perror("msgsnd");
-                }
-                _exit(0);
-            }
+            //     my_msgbuf chbuf;
+            //     chbuf.mtype = 1;
+            //     chbuf.mtext = getpid();
+            //     if (msgsnd(msqid, &chbuf, sizeof(chbuf.mtext), IPC_NOWAIT) == -1){
+            //         perror("msgsnd");
+            //     }
+            //     _exit(0);
+            // }
 
             /* Simulate working of foreground jobs */
 
-            /*execute(command);*/
-            struct my_msgbuf chbuf;
+            execute(command);
+            my_msgbuf chbuf;
             chbuf.mtype = 1;
             chbuf.mtext = getpid();
             if (msgsnd(msqid, &chbuf, sizeof(chbuf.mtext), IPC_NOWAIT) == -1){
                 perror("msgsnd");
             }
+            
+		    pipe(p_sync);
+            close(p_sync[0]); /* Close unused read end */
+            close(p_sync[1]);
             _exit(EXIT_SUCCESS);
 		}
         else{ /* Parent */
@@ -186,13 +284,11 @@ int main(int argc, char* argv[]){
 
             /* Print Child Details */
             int curr_pid = child;
-			printf(YELLOW"Command Details - Process Group %d:\n", num);
+			printf(YELLOW"Command Details - Process Group %d:\n"RESET, num);
             num++;
-			printf("\tPID  : %d\n", curr_pid);
-			printf("\tPGID : %d\n", getpgid(curr_pid));
-			printf("\n"RESET);
-            
-            
+			printf(YELLOW"\tPID  : %d\n"RESET, curr_pid);
+			printf(YELLOW"\tPGID : %d\n"RESET, getpgid(curr_pid));
+			printf("\n");
 
             /* Set child as the foreground process group for the terminal*/
 			if (isfg){
@@ -226,15 +322,20 @@ int main(int argc, char* argv[]){
 			 
 			 	/* Foreground process gets terminated */
 			 	else if(WIFEXITED(status) || WIFSIGNALED(status)) {
-					remove_entry_by_pgid(child);
+					// remove_entry_by_pgid(child);
 				}
                 /* fg command process leader exits */
                 /* Set shell as foreground process for the terminal again */
                 tcsetpgrp(STDIN_FILENO, getpid());
 				signal(SIGTTOU, SIG_DFL);
             }
+            close(p_sync[1]);/* Close unused write end */
+            int syn_var;
+            /* Wait till parent sees EOF from pipe */
+            int n = read(p_sync[0], &syn_var, 1);
+            close(p_sync[0]); 
         }
-        // free(command);
+        
     }
     if (msgctl(msqid, IPC_RMID, NULL) == -1) perror("msgctl"); 
     exit(EXIT_SUCCESS);

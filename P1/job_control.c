@@ -85,7 +85,7 @@ char** break_loner_cmds(char* cmd){
 	char *process = strdup(cmd);
 
 	char *token = strtok(process, " ");
-    if(strcmp(token, "fg") != 0 && strcmp(token, "bg") != 0 && strcmp(token, "sc") != 0 && strcmp(token, "jobs") != 0){
+    if(strcmp(token, "psc") != 0  && strcmp(token, "fg") != 0 && strcmp(token, "bg") != 0 && strcmp(token, "sc") != 0 && strcmp(token, "jobs") != 0){
         free(process);
         free(broken_cmd);
         return NULL;
@@ -119,7 +119,10 @@ bool run_job(char* command){
                 make_background(broken_cmd[1]);
             }
             else if(strcmp(broken_cmd[0], "sc") == 0){
-                
+                manage_sc_command(broken_cmd);
+            }
+            else if(strcmp(broken_cmd[0], "psc") == 0){
+                print_sc_table();
             }
             for(int i = 0; i < MAX_SIZE_SINGLE_CMD; i++)
                 if(broken_cmd[i]) free(broken_cmd[i]);

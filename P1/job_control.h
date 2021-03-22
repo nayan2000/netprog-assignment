@@ -4,11 +4,14 @@
 #include "basic.h"
 #include "job_table.h"
 #include "parse_command.h"
-#define MAX_SIZE_SINGLE_CMD 5
+#include "hashmap.h"
+#define MAX_SIZE_SINGLE_CMD 10
 
 
 extern size_t max_cmd_sz;
 extern command_details* j_table[MAX_CMD];
+extern char* sc_table[MAX_SC_SIZE];
+
 
 void make_foreground(char* broken_cmd);
 void make_background(char* broken_cmd);

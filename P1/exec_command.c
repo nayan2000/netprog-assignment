@@ -19,7 +19,12 @@ bool exec_curr_cmd(char* command){
 			token = strtok(NULL, " ");
 		}
 		args[i] = (char*)NULL;
-
+        my_msgbuf chbuf;
+        chbuf.mtype = 1;
+        chbuf.mtext = getpid();
+        if (msgsnd(msqid, &chbuf, sizeof(chbuf.mtext), IPC_NOWAIT) == -1){
+            perror("msgsnd");
+        }
 		// char *path = get_path(args[0]);
 		// if (path == NULL){
 		// 	printf("FATAL ERROR : %s: PROGRAM NOT FOUND\n", args[0]);
@@ -31,6 +36,7 @@ bool exec_curr_cmd(char* command){
     }
     return false; /* useless */
 }
+
 void trim(char *s, bool space) {
     char *p = s;
     int l = strlen(p);
@@ -44,8 +50,8 @@ void trim(char *s, bool space) {
     }
 
     memmove(s, p, l + 1);
-   
 } 
+
 char* check_redirection(char* command, int in, int out){
 	char *process = strdup(command);
 	char *token = strtok(process, "><");
@@ -126,21 +132,21 @@ void redirect_desc_io(int oldfd, int newfd) {
 
 bool preprocess_pipe_io(int in, int out){
     int curr_pid = getpid();
-	fprintf(stderr, "\tPID: %d\n", getpid());
+	fprintf(stdout, "\tPID: %d\n", getpid());
 	fprintf(stderr, "\tPGID: %d\n\n", getpgid(curr_pid));
 
 	fprintf(stderr, "\tReading from fd %d\n", in);
 	redirect_desc_io(in, STDIN_FILENO);
     fprintf(stderr, "\tWriting to fd %d\n", out);
+    fprintf(stderr, "--------------------------------------------------\n");
     redirect_desc_io(out, STDOUT_FILENO);
     return true;
 }
 
-
 int execute(char* command){
     token_list* list = parse_cmd(command);
-    printf("List size : %d\n", list->size);
-    print_list(list);
+    // printf("List size : %d\n", list->size);
+    // print_list(list);
 
     token_node* temp = list->head;
     int node_no = 1;
@@ -174,12 +180,12 @@ int execute(char* command){
         int fd[2]; /* in/out pipe ends */
         if(pipe(fd) == -1)
             perror("pipe");
-        printf("Pipe Descriptors :\n\tRead : %d\n\tWrite: %d\n", fd[0], fd[1]);
+        // printf("Pipe Descriptors :\n\tRead : %d\n\tWrite: %d\n", fd[0], fd[1]);
         pid_t child = fork();
 
         if(child < 0){ /* Error */
 			printf(RED"FATAL ERROR: CAN'T CREATE CHILD PROCESS\n"RESET);
-			exit(EXIT_FAILURE);
+			_exit(EXIT_FAILURE);
 		}
 
         else if(child == 0){    /* run command in the child process */
@@ -201,30 +207,48 @@ int execute(char* command){
         
             int status;
             for(;;){
-                pid_t childPid = wait(0);
-                if(childPid == -1){
-                    if(errno == ECHILD){
-                        break;
-                    }
-                    else{
-                        perror("Wait error");
-                        printf(RED"Unexpected error while waiting for process %d\n"RESET, childPid);
-                        _exit(EXIT_FAILURE);
-                    }
+                pid_t leader = waitpid(child, &status, WUNTRACED); 
+                if(leader == -1){
+                    break;
                 }
             }
         }
     }
-    printf("--------------------------------------------------\n");
-    curr_cmd = temp->token;
-    printf("Executing current command : %s\n", curr_cmd);
-    preprocess_pipe_io(in, STDOUT_FILENO);
+    /* Last Command in Pipeline */
+    fprintf(stderr, "--------------------------------------------------\n");
+    pid_t child = fork();
+    if(child < 0){ /* Error */
+        printf(RED"FATAL ERROR: CAN'T CREATE CHILD PROCESS\n"RESET);
+        _exit(EXIT_FAILURE);
+    }
+    else if(child == 0){    /* run command in the child process */
+        curr_cmd = temp->token;
+        printf("Executing current command : %s\n", curr_cmd);
+        preprocess_pipe_io(in, STDOUT_FILENO);
+        
+        curr_cmd = check_redirection(curr_cmd, in, STDOUT_FILENO);
+        bool ret = exec_curr_cmd(curr_cmd);
+        _exit(!ret);
+    }
+    else{ /* parent */
+        assert (child > 0);
+        if(node_no != 3)
+            close(in);          /* close unused read end of the previous pipe */    
+        int status;
+        do{
+            waitpid(child, &status, WUNTRACED);
+        }while(
+                !WIFSIGNALED(status)		&&
+                !WIFEXITED(status)			&&
+                !WIFSTOPPED(status)
+               	);
+        
+    }
+    return 1;
     
-    curr_cmd = check_redirection(curr_cmd, in, STDOUT_FILENO);
-    bool ret = exec_curr_cmd(curr_cmd); 
 }
 
-int main(void) {
-    char command[] = "ls -l | sort -k9 >> d.txt";
-    execute(command);
-}
+// int main(void) {
+//     char command[] = "ls -l | sort -k9 >> d.txt";
+//     execute(command);
+// }
