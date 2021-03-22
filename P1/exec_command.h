@@ -16,6 +16,10 @@ typedef struct my_msgbuf{
 extern int msqid;
 extern key_t key;
 
+bool fileExists(char*);
+char* returnPATH(char*);
+bool run_job(char* command);
+bool exec_curr_cmd(char* command);
 void trim(char *s, bool space);
 char* check_redirection(char* command, int in, int out);
 void redirect_desc_io(int oldfd, int newfd);
