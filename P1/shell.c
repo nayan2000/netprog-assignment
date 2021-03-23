@@ -274,7 +274,11 @@ int main(int argc, char* argv[]){
                     }
                 }
                 if(WIFSTOPPED(status)) {
-					update_entry_by_pgid(child, BG, STOP);
+                    cmd_rec->pgid = child == 0? getpid() : child;
+                    cmd_rec->cmd = strdup(command);
+                    cmd_rec->type = BG;
+                    cmd_rec->status = STOP;
+                    add_entry(cmd_rec);
 			 	}
 			 
 			 	/* Foreground process gets terminated */
