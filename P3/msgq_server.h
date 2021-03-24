@@ -9,8 +9,8 @@
 #define MAX_GROUP_SZ 40
 #define MAX_GROUPS 40
 
-typedef struct request_msg {                    /* Requests (client to server) */
-    long mtype;                         /* Unused */
+typedef struct request_msg {               
+    long mtype;                        
     int  client_qid;                      /* ID of client's message queue */
     char* uname;
     char command;
@@ -36,18 +36,18 @@ typedef struct user_list{
 
 #define RESP_MSG_SIZE 8192
 
-typedef struct response_msg{                /* Responses (server to client) */
-long mtype;                                 /* One of RESP_MT_* values below */
-char data[RESP_MSG_SIZE];                   /* File content / response message */
+typedef struct response_msg{                 /* Responses (server to client) */
+    long mtype;                              /* One of RESP_MT_* values below */
+    char data[RESP_MSG_SIZE];                /* File content / response message */
 }response_msg;
 
 /* Types for response messages sent from server to client */
-#define RESP_MT_NOT_MEMBER 1                /* File couldn't be opened */
+#define RESP_MT_NOT_MEMBER 1                /* User not a member oof given group */
 #define RESP_MT_DATA 2                      /* Message contains data */
-#define RESP_MT_GROUP_EXISTS 3
-#define RESP_MT_GROUP_NO_EXIST 4
-#define RESP_MT_USER_NO_EXIST 5
-#define RESP_MT_ACK 6
+#define RESP_MT_GROUP_EXISTS 3              /* Group already exixts. Can't create group */
+#define RESP_MT_GROUP_NO_EXIST 4            /* Group doesn't exist. Make new and join */
+#define RESP_MT_USER_NO_EXIST 5             /* User doesn't exist. Can't send private message */
+#define RESP_MT_ACK 6                       /* Message contains successful execution acknowlegement */
 
 int group_to_id(char*);
 char* id_to_group(int);
