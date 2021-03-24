@@ -8,7 +8,7 @@ void grim_reaper(int sig) {
 }
 
 int server_setup(char* server_port){    
-    int lfd, optval;
+    int lfd = -1, optval;
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     struct sigaction sa;
@@ -76,7 +76,7 @@ int server_setup(char* server_port){
 
 
 int client_setup(char* server_ip, char* server_port){
-    int cfd;
+    int cfd = -1;
     ssize_t numRead;
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -113,7 +113,7 @@ int client_setup(char* server_ip, char* server_port){
 
     if (rp == NULL){
         fprintf(stderr, RED"FATAL ERROR : CANT'T CONNECT ON ANY SOCKET\n"RESET);
-        exit(EXIT_FAILURE);
+        return -1;
     }
         
 

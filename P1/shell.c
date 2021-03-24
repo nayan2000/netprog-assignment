@@ -114,16 +114,20 @@ bool process_command(bool *isfg, char * command){
     return ignore = false;
 }
 
-
+void clear_screen(){
+  const char *CLEAR_SCREEN_ANSI = "\e[1;1H\e[2J";
+  write(STDOUT_FILENO, CLEAR_SCREEN_ANSI, 12);
+}
 /*  Use    - Shell Driver function
              Runs the main shell program
 */
 int main(int argc, char* argv[]){
+    clear_screen();
     int num = 1;
     initial_setup();
 
-    printf(GREEN"\n===============SHELL EXECUTION STARTED================\n"RESET);
-    printf(BLUE"\nShell Process Details:\n");
+    printf(GREEN"\n************* SHELL EXECUTION STARTED *************\n"RESET);
+    printf(BLUE"\nShell Details:\n");
 			printf("\tPID  : %d\n", getpid());
 			printf("\tPGID : %d\n", getpgid(getpid()));
 			printf("\n"RESET);
@@ -191,22 +195,6 @@ int main(int argc, char* argv[]){
                 _exit(EXIT_FAILURE);
 
 			/* Start execution of command */
-            /* Simulate working of bg jobs */
-            if(!isfg){   
-                
-                sleep(7);
-
-                my_msgbuf chbuf;
-                chbuf.mtype = 1;
-                chbuf.mtext = getpid();
-                if (msgsnd(msqid, &chbuf, sizeof(chbuf.mtext), IPC_NOWAIT) == -1){
-                    perror("msgsnd");
-                }
-                _exit(0);
-            }
-
-            /* Simulate working of foreground jobs */
-
             execute(command);
             if(!isfg){
                 my_msgbuf chbuf;
@@ -242,9 +230,15 @@ int main(int argc, char* argv[]){
 
             /* Print Child Details */
             int curr_pid = child;
-			printf(YELLOW"Command Details - Process Group\n"RESET);
+			printf(YELLOW"Command Details:\n"RESET);
 			printf(YELLOW"\tPID  : %d\n"RESET, curr_pid);
 			printf(YELLOW"\tPGID : %d\n"RESET, getpgid(curr_pid));
+			printf(YELLOW"\tStatus : RUNNING\n"RESET);
+            if(isfg)
+                printf(YELLOW"\tType : FOREGROUND\n"RESET);
+            else
+                printf(YELLOW"\tType : BACKGROUND\n"RESET);
+
 			printf("\n");
 
             /* Set child as the foreground process group for the terminal*/

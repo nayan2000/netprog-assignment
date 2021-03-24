@@ -17,6 +17,7 @@ extern command_details* j_table[MAX_CMD];
 
 /* Function Declarations */
 void remove_queue();
+void clear_screen();
 void grim_reaper(int sig);
 void shortcut_handler(int sig);
 void initial_setup();
