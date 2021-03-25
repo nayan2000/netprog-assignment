@@ -48,6 +48,7 @@ typedef struct response_msg{                 /* Responses (server to client) */
 #define RESP_MT_GROUP_NO_EXIST 4            /* Group doesn't exist. Make new and join */
 #define RESP_MT_USER_NO_EXIST 5             /* User doesn't exist. Can't send private message */
 #define RESP_MT_ACK 6                       /* Message contains successful execution acknowlegement */
+#define RES
 
 int group_to_id(char*);
 char* id_to_group(int);
