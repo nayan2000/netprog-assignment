@@ -154,7 +154,7 @@ void serve_request(const request_msg *req){
             break;
         case 'u':
             resp.mtype = RESP_MT_ACK;
-            /* data contains the group message */
+            /* data contains the user message */
             /* args contain user name */
             int qid = get(map, args);
             bool found = false;
