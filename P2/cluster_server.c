@@ -1,22 +1,16 @@
-#include "basic.h"
-#include "setup_utilities.h"
-#include "get_config.h"
-#include "parse_input.h"
-#include "inet_sockets.h"
-#define MAX_BUF_SZ 2048
-#define MAX_OUTPUT 2048
-#define MAX_INPUT 2048
-
+#include "server_utilities.h"
 char **client_ips = NULL;
 
+/*
 int is_alive(char *ipaddr){
 	int sockfd;
 	struct sockaddr_in serveraddr;
 	if((sockfd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP)) < 0)
 			perror("Socket: Open");
-	serveraddr.sin_port = htons(atoi(CLIENT_PORT));
+	serveraddr.sin_port = htons(atoi(SERV_PORT));
 	serveraddr.sin_family = AF_INET;
 	serveraddr.sin_addr.s_addr = inet_addr(ipaddr);
+	printf("Inside is_alive() func\n");
 	if(connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0){
 		close(sockfd);
 		return 0;
@@ -26,40 +20,52 @@ int is_alive(char *ipaddr){
 		return 1;
 	}
 }
+*/
 
 bool handle_nodes_cmd(char* cmd, char* buf){
 	if(strcmp(cmd, "nodes") == 0) {
+		printf("Here\n");
+		char suffix[50] = {0};
 		for(int i = 1; i < MAX_NODES+1; i++){
 			char *ip = client_ips[i];
-			if(is_alive(ip) == 1){
-				sprintf(buf, GREEN"n[%d] - %s : Online\n"RESET, i, ip);
+			if(ip){
+				sprintf(suffix, GREEN"n[%d] - %s : Online\t"RESET, i, ip);
+				strcat(buf, suffix);
 			}
-			else{
-				sprintf(buf, RED"n[%d] - %s : Offline\n"RESET, i, ip);
-			}
+			// else{
+			// 	sprintf(suffix, RED"n[%d] - %s : Offline\t"RESET, i, ip);
+			// }
 		}
+		strcat(buf, "$");
 		return true;
 	}
 	return false;
 }
 void handle_request(int cfd, char * address_string){
-	int n;
-	char cmd[MAX_BUF_SZ] = {0};
-	while(n = read(cfd, cmd, MAX_BUF_SZ) > 0){
-		cmd[n] = 0;
-		printf(GREEN"%d - Command: %s\n\tClient : %s\n"RESET, n, cmd, address_string);
-		
+	ssize_t nread = 0;
+	while(1){
+		char cmd[MAX_BUF_SZ] = {0};
+		read_buf reader;
+		bzero(&reader, sizeof(reader));
+		readline_buf_init(cfd, &reader);
+		nread = readline_buf(&reader, cmd, MAX_BUF_SZ);
+		if(nread <= 0) break;
+		if(cmd[nread - 1] == '$')
+			cmd[nread-1] = 0; 		/*Remove $*/
 		char input_buf[3*MAX_INPUT + 1] = {0};
+		
 		int inp_sz = 0;
 		if(handle_nodes_cmd(cmd, input_buf)){
+			printf("Input sent :\n");
+			puts(input_buf);
 			write(cfd, input_buf, strlen(input_buf) + 1);
 			continue;
 		}
 
 		cmd_list* list = parse_inp(cmd);
+		print_list(list);
 		cmd_node* temp = list->head;
-
-
+		input_buf[0] = '$';
 		while(temp != NULL){
 			char* node_id = temp->node;
 			char* command = temp->command;
@@ -67,58 +73,88 @@ void handle_request(int cfd, char * address_string){
 				char combined[3*MAX_OUTPUT+1] = {0};
 
 				for(int i = 1; i < MAX_NODES+1; i++){
+					read_buf out_reader;
+					bzero(&out_reader, sizeof(reader));
+					
 					char *ip = client_ips[i];
 					int connfd = inet_connect(ip, CLIENT_PORT, SOCK_STREAM);
-					if(connfd < 0) continue;		
+					if(connfd < 0){
+						perror(RED"Connect error while executing child command"RESET);
+						_exit(0);
+					}
+					readline_buf_init(connfd, &reader);
+
 					char send_buf[MAX_BUF_SZ] = {0};
 					strcpy(send_buf, command);
+					
 					if(strlen(input_buf))
 						strcpy(send_buf+strlen(command)+1, input_buf);
-					int len = strlen(command) + strlen(input_buf) + 2;
+					
+					strcat(send_buf, "$");
+					int len = strlen(command) + strlen(input_buf) + 3;
 					int nbytes = write(connfd, send_buf, len);
 					if(nbytes != len) {
 						perror(RED"WRITE"RESET);
 					}
 					char recv_buf[MAX_OUTPUT + 1];
-					int n = read(connfd, recv_buf, MAX_OUTPUT+1);
+					int n = readline_buf(&out_reader, recv_buf, MAX_OUTPUT+1);
 					recv_buf[n] = 0;
 					strcat(combined, recv_buf);
 					close(connfd);
 				}
-				inp_sz = strlen(combined)+1;
+				strcat(combined, "$");
+				inp_sz = strlen(combined) + 1;
 				strcpy(input_buf, combined);
 				
 			}
 			else{
+				read_buf out_reader;
+				bzero(&out_reader, sizeof(reader));
+
 				int i = atoi(node_id + 1);
 				char *ip = client_ips[i];
 				int connfd = inet_connect(ip, CLIENT_PORT, SOCK_STREAM);
-				if(connfd < 0) continue;		
+				if(connfd < 0){
+					perror(RED"Connect error while executing child command"RESET);
+					_exit(0);
+				}
+				readline_buf_init(connfd, &reader);
+
 				char send_buf[MAX_BUF_SZ] = {0};
 				strcpy(send_buf, command);
 				if(strlen(input_buf))
 					strcpy(send_buf+strlen(command)+1, input_buf);
+
 				int len = strlen(command) + strlen(input_buf) + 2;
+				/* command-0-input_buf$-0*/
 				int nbytes = write(connfd, send_buf, len);
+
 				if(nbytes != len) {
 					perror(RED"WRITE"RESET);
 				}
-				inp_sz = read(connfd, input_buf, MAX_OUTPUT+1);
-				input_buf[n] = 0;
+
+				inp_sz = readline_buf(&reader, input_buf, MAX_OUTPUT+1);
+				/* input_buf$ */
+				input_buf[inp_sz] = 0;
+				inp_sz++;
 				close(connfd);
 			}
 		}
 		write(cfd, input_buf, inp_sz);
 	}
 	free(address_string);
+	printf(GREEN"Client Exiting: %s\n"RESET, address_string);
 	close(cfd);
 }
 
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]){
     client_ips = load_config_file("config");
     int lfd = inet_listen(SERV_PORT, BACKLOG, NULL);
+	if(lfd == -1){
+		perror(RED"Listen error"RESET);
+		exit(EXIT_FAILURE);
+	}
 	printf(YELLOW"SERVER STARTED\n"RESET);
 	
     struct sockaddr_in claddr;
@@ -138,7 +174,8 @@ int main(int argc, char *argv[])
 
 		inet_address_str((struct sockaddr*)&claddr, addrlen, address_string, IS_ADDR_STR_LEN);
 		printf(GREEN"Handling client %s\n"RESET, address_string);
-
+		fflush(stdout);
+		fflush(stdin);
 		pid_t child = fork();
 		switch(child){
 			case -1:

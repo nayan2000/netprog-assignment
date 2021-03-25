@@ -148,3 +148,61 @@ char* inet_address_str(const struct sockaddr *addr, socklen_t addrlen,
 
     return addrStr;
 }
+
+void                    /* Initialize a ReadLineBuf structure */
+readline_buf_init(int fd, struct read_buf *rlbuf)
+{
+    rlbuf->fd = fd;
+    rlbuf->len = 0;
+    rlbuf->next = 0;
+}
+
+/* Return a line of input from the buffer 'rlbuf', placing the characters in
+   'buffer'. The 'n' argument specifies the size of 'buffer'. If the line of
+   input is larger than this, then the excess characters are discarded. */
+
+ssize_t readline_buf(read_buf *rlbuf, char *buffer, size_t n)
+{
+    size_t cnt;
+    char c;
+
+    if (n <= 0 || buffer == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    cnt = 0;
+
+    /* Fetch characters from rlbuf->buf, up to the next new line. */
+    for (;;) {
+
+        /* If there are insufficient characters in 'tlbuf', then obtain
+           further input from the associated file descriptor. */
+
+        if (rlbuf->next >= rlbuf->len) {
+            rlbuf->len = read(rlbuf->fd, rlbuf->buf, RL_MAX_BUF);
+            if (rlbuf->len == -1)
+                return -1;
+
+            if (rlbuf->len == 0)        /* End of file */
+                break;
+
+            rlbuf->next = 0;
+        }
+
+        c = rlbuf->buf[rlbuf->next];
+        rlbuf->next++;
+        
+        if (cnt < n){
+            buffer[cnt] = c;
+            if(c == '\t')
+                buffer[cnt] = '\n';
+            cnt++;
+        }
+        if (c == '$')
+            break;
+    }
+    printf("Read Size : %ld\n", cnt);
+    printf("Read Value :\n%s\n", buffer);
+    return cnt;
+}

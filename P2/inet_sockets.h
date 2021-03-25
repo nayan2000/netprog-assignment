@@ -25,6 +25,19 @@
 #define SERV_IP "127.0.0.1"
 #define BACKLOG 5
 
+#define RL_MAX_BUF 100
+
+typedef struct read_buf {
+    int     fd;                 /* File descriptor from which to read */
+    char    buf[RL_MAX_BUF];    /* Current buffer from file */
+    int     next;               /* Index of next unread character in 'buf' */
+    ssize_t len;                /* Number of characters in 'buf' */
+}read_buf;
+
+void readline_buf_init(int fd, struct read_buf *rlbuf);
+
+ssize_t readline_buf(read_buf *rlbuf, char *buffer, size_t n);
+
 int inet_connect(const char *host, const char *service, int type);
 
 int inet_listen(const char *service, int backlog, socklen_t *addrlen);
