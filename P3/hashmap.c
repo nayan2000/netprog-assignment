@@ -73,7 +73,7 @@ int get(hashmap *map, char *key){
 		ptr = ptr->next;
 	}
 
-	return NULL;
+	return -1;
 }
 
 int has_key(hashmap *map, char *key){

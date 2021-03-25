@@ -92,13 +92,13 @@ void print_list(cmd_list* list) {
     printf("\n");
 }
 
-int main(){
-    char command[] = "n1.ls-l";
-    cmd_list* list = parse_inp(command);
-    print_list(list);
-    char x[20] = {0};
-    printf("%d", strlen(x));
-    // remove_list(list);
-    // print_list(list);
-}
+// int main(){
+//     char command[] = "n1.ls-l";
+//     cmd_list* list = parse_inp(command);
+//     print_list(list);
+//     char x[20] = {0};
+//     printf("%d", strlen(x));
+//     // remove_list(list);
+//     // print_list(list);
+// }
 
