@@ -62,7 +62,7 @@ int main(){
                 bool ignore = process_command(command);
                 if(ignore) continue;
 
-                write(connfd, command, 6);
+                write(connfd, command, CMD_SZ);
                 char out[MAX_OUTPUT + 1];
                 size_t nread = read(connfd, out, MAX_OUTPUT);
 

@@ -42,7 +42,7 @@ int create_and_add_group(int size, char* groupname, int client){
     (groups.size)++;
     return -1;
 }
-void setup_child_msq(const request_msg *req){
+void setup_client_msgq(const request_msg *req){
     char* username = strdup(req->uname);
     if(!has_key(map, username)){
         insert(map, username, req->client_qid);
@@ -52,7 +52,7 @@ void setup_child_msq(const request_msg *req){
 }
 
 void serve_request(const request_msg *req){
-    int fd;
+    int fd, i;
     ssize_t numRead;
     response_msg resp;
     bzero(&resp, sizeof(resp));
@@ -82,7 +82,7 @@ void serve_request(const request_msg *req){
         case 'l':
             resp.mtype = RESP_MT_DATA;
             /* data contains null */
-            char suffix[50] = {0};
+            char suffix[80] = {0};
             for(int i = 0; i < groups.size; i++) {
                 if(is_group_member(groups.list[i].groupname, req->client_qid))
                     sprintf(suffix, GREEN"Group name : %s - ID %d - Member\n---\n"RESET, groups.list[i].groupname, i);
@@ -94,7 +94,7 @@ void serve_request(const request_msg *req){
             break;
         case 'j':
             resp.mtype = RESP_MT_ACK;
-            int i = group_to_id(data);
+            i = group_to_id(data);
             /* data contains group name */
             if(is_group_member(data, req->client_qid)){
                 sprintf(resp.data, "Already a member of the group : %s - ID %d\n---\n", data, i);
@@ -121,11 +121,11 @@ void serve_request(const request_msg *req){
             /* data contains the group message */
             /* args contain group name */
             int uid = req->client_qid;
-            int i = create_and_add_group(1, args, req->client_qid);
+            i = create_and_add_group(1, args, req->client_qid);
             if(i >= 0){
                if(is_group_member(args, uid)){
                     response_msg others;
-                    bezero(&others, sizeof(others));
+                    bzero(&others, sizeof(others));
                     sprintf(others.data, "\nMessage from group : %s - ID %d\n\t Username : %s - ID %d\n---\n", 
                             groups.list[i].groupname, i, req->uname, req->client_qid);
                     strcat(others.data, data);
@@ -162,7 +162,7 @@ void serve_request(const request_msg *req){
                 if(users.list[i] == qid){
                     found = true;
                     response_msg others;
-                    bezero(&others, sizeof(others));
+                    bzero(&others, sizeof(others));
                     sprintf(others.data, "\nMessage from user : %s - ID %d\n---\n", req->uname, req->client_qid);
                     strcat(others.data, data);
                     strcat(others.data, "---\n");
@@ -189,10 +189,13 @@ int main(int argc, char *argv[]){
     struct request_msg req;
     ssize_t msgLen;
     int serverId;
+    
+    printf("here\n");
 
     create_hm(map, MAX_USERS);
     bzero(&groups, sizeof(groups));
     bzero(&users, sizeof(users));
+
     
     /* Create server message queue */
     serverId = msgget(SERVER_KEY, IPC_CREAT | IPC_EXCL |
@@ -215,7 +218,7 @@ int main(int argc, char *argv[]){
         users.list[users.size] = req.client_qid;
         (users.size)++;
         setup_client_msgq(&req);
-        serveRequest(&req);
+        serve_request(&req);
     }
 
     /* If msgrcv()  fails, remove server MQ and exit */
