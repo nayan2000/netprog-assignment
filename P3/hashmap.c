@@ -14,7 +14,7 @@ size_t hash(char *str, size_t size){
 }
 
 void create_hm(hashmap *map, size_t cap){
-	map->buckets = (bucket_node**) malloc(sizeof(bucket_node*)*cap);
+	map->buckets = (bucket_node**) malloc(sizeof(bucket_node*)cap);
 	map->capacity = cap;
 	size_t i;
 

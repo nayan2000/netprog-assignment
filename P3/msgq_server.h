@@ -43,18 +43,17 @@ typedef struct response_msg{                 /* Responses (server to client) */
 
 /* Types for response messages sent from server to client */
 #define RESP_MT_NOT_MEMBER 1                /* User not a member oof given group */
-#define RESP_MT_DATA 2                      /* Message contains data */
-#define RESP_MT_GROUP_EXISTS 3              /* Group already exixts. Can't create group */
-#define RESP_MT_GROUP_NO_EXIST 4            /* Group doesn't exist. Make new and join */
-#define RESP_MT_USER_NO_EXIST 5             /* User doesn't exist. Can't send private message */
-#define RESP_MT_ACK 6                       /* Message contains successful execution acknowlegement */
-#define RES
+#define RESP_MT_GROUP_EXISTS 2              /* Group already exixts. Can't create group */
+#define RESP_MT_GROUP_NO_EXIST 3            /* Group doesn't exist. Make new and join */
+#define RESP_MT_USER_NO_EXIST 4             /* User doesn't exist. Can't send private message */
+#define RESP_MT_ACK 5                       /* Message contains successful execution acknowlegement */
+#define RESP_MT_DATA 6                      /* Message contains data */
 
 int group_to_id(char*);
 char* id_to_group(int);
 bool is_group_member(char*, int);
 int create_and_add_group(int, char*, int);
-void setup_child_msq(const request_msg*);
+void setup_client_msgq(const request_msg*);
 void serve_request(const request_msg*);
 int main(int, char**);
 

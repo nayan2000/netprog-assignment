@@ -4,27 +4,49 @@ int getReqSize(request_msg* req) {
     return sizeof(req->client_qid) + sizeof(req->uname) + sizeof(req->command) + sizeof(req->args) + sizeof(req->data);
 }
 
+int getResSize(response_msg* res) {
+    return sizeof(res->data);
+}
+
 int main() {
     int ch = -1;
     // SETUP MESSAGE QUEUE
-    char uid[20];
-    printf("Enter your user ID: ");
-    scanf("%s", uid);
+    char uname[20];
+    printf("Enter your username: ");
+    scanf("%s", uname);
     
-    // ATTEMPT TO CREATE NEW MSGQ
-    int clientId = msgget(uid, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IWGRP);
-    if(clientId == -1 && errno == EEXIST) {
-        // MSGQ ALREADY EXISTS, RETRIEVE
-        clientId = msgget(uid, 0);
-        printf("New user, creating message queue...\n");
-    } else {
-        printf("Welcome back %s!\n", uid);
+    // CREATE NEW MSGQ
+    int clientId = msgget(IPC_PRIVATE, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IWGRP);
+    request_msg initreq;
+    initreq.client_qid = clientId;
+    strcpy(initreq.uname, uname);
+    initreq.command = 'n';
+    msgsnd(SERVER_KEY, &initreq, getReqSize(&initreq), IPC_NOWAIT);
+
+    // CHILD - HANDLE MESSAGES
+    //int p[2]; // 0 - READ, 1 - WRITE
+    //pipe(p);
+    if(!fork()) {
+        //close(1);
+        //dup(p[1]);
+
+        response_msg res;
+
+        while(1) {
+            msgrcv(clientId, &res, getResSize(&res), RESP_MT_DATA, 0);
+            printf("%s", res.data);
+        }
+
     }
+    //close(0);
+    //dup(p[0]);
 
     // MAIN LOOP
     while(1) {
         request_msg req;
         req.client_qid = clientId;
+
+        response_msg res;
 
         printf("%s\n", "-----------------------------------------------");
         printf("%s\n", "                  CLIENT MENU                  ");
@@ -77,6 +99,12 @@ int main() {
         }
 
         msgsnd(SERVER_KEY, &req, getReqSize(&req), IPC_NOWAIT);
+
+        // WAIT FOR REPLY FROM SERVER
+        msgrcv(clientId, &res, getResSize(&res), -5, 0);
+
+        printf("%s", res.data);
+
     }
 
     return 0;
