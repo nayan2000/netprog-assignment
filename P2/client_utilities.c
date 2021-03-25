@@ -1,5 +1,20 @@
 #include "client_utilities.h"
 
+void trim(char *s, bool space) {
+    char *p = s;
+    int l = strlen(p);
+    if(space){
+        while(isspace(p[l - 1])) p[--l] = 0;
+        while(*p && isspace(* p)) ++p, --l;
+    }
+    else{
+        while(p[l - 1] == '"') p[--l] = 0;
+        while(*p && *p == '"') ++p, --l;
+    }
+
+    memmove(s, p, l + 1);
+} 
+
 char* get_path(char* exe){
     char* path = NULL;
     if(exe[0] == '.' || exe[0]== '/') {
@@ -134,7 +149,6 @@ bool process_command(char *command){
     size_t max_cmd_sz = CMD_SZ + 1;
 
     /* Get command from the terminal */
-    memset(command, '\0',sizeof(command));
     int cmd_sz = getline(&command, &max_cmd_sz, stdin);
     if(cmd_sz == -1 || cmd_sz == 0 || strcmp(command, "\n") == 0)
         return ignore = true;

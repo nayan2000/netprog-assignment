@@ -1,5 +1,7 @@
 #include "client_utilities.h"
+void exit_handler(){
 
+}
 void handle_request(int cfd){
     ssize_t nread = 0;
 	while(1){
@@ -13,7 +15,7 @@ void handle_request(int cfd){
 			cmd_out[nread-1] = 0; 		/*Remove $*/
 
         char* command = strdup(cmd_out);
-        char* temp = strlen(command) + 1;
+        char* temp = cmd_out + strlen(command) + 1;
         char* input = strdup(temp);
 
         if(command[0] == 'c' && command[1] == 'd' && command[2] == ' '){
@@ -27,7 +29,7 @@ void handle_request(int cfd){
             int rpipes[2], wpipes[2];
             pipe(rpipes);
             pipe(wpipes);
-            write(wpipes[1], command, strlen(command) + 1);
+            write(wpipes[1], input, strlen(input) + 1);
             char output[30] = {0};
             switch(fork()){
                 case 0:;
@@ -43,7 +45,7 @@ void handle_request(int cfd){
                     char *path = get_path(args[0]);
                     if (path == NULL){
                         fprintf(stderr, RED"ERROR : %s: PROGRAM NOT FOUND\n"RESET, args[0]);
-                        return false;
+                        _exit(EXIT_FAILURE);
                     }
                     if (execv(path, args) == -1) {
                         fprintf(stderr, RED"FATAL ERROR : %s: PROGRAM CANNOT BE EXECUTED\n"RESET, args[0]);
@@ -73,6 +75,11 @@ int main(){
             exit(EXIT_FAILURE);
             break;
         case 0:;
+            int r = prctl(PR_SET_PDEATHSIG, SIGTERM);
+            if (r == -1) { 
+                perror(RED"CLIENT SIDE: CHILD SERVER EXITING"RESET); exit(1); }
+            if (getppid() == 1)
+                exit(1);
             int lfd = inet_listen(CLIENT_PORT, BACKLOG, NULL);
             if(lfd == -1){
                 perror(RED"CLIENT SIDE: LISTEN ERROR"RESET);
@@ -80,11 +87,8 @@ int main(){
             }
             printf(YELLOW"CLIENT SIDE: SERVER STARTED\n"RESET);
             
-            struct sockaddr_in claddr;
             int cfd;
-            socklen_t addrlen;
             for(;;) {
-                addrlen = sizeof(claddr);
                 if ((cfd = accept(lfd, NULL, NULL)) < 0) {
                     if (errno == EINTR) continue; /* back to for() */ 
                     else{
@@ -99,11 +103,15 @@ int main(){
                 fflush(stdin);
                 pid_t child = fork();
                 switch(child){
-                    case -1:
+                    case -1:;
                         printf(RED"CLIENT SIDE: CHILDREN CAN'T BE CREATED\n"RESET);	
                         exit(EXIT_FAILURE);
 
-                    case 0:
+                    case 0:;
+                        int r = prctl(PR_SET_PDEATHSIG, SIGTERM);
+                        if (r == -1) { perror(0); exit(1); }
+                        if (getppid() == 1)
+                            exit(1);
                         close(lfd);	
                         handle_request(cfd);			
                         _exit(EXIT_SUCCESS);

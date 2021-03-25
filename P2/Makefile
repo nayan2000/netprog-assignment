@@ -1,10 +1,11 @@
+all: client server
 client:
-	gcc -g -o cluster_client.c cluster_utilities.c inet_sockets.c -o client 
+	gcc -Wall -o client cluster_client.c client_utilities.c inet_sockets.c
 
 server:
-	gcc -g -o  get_config.c inet_sockets.c parse_input.c
+	gcc -Wall -o server cluster_server.c parse_input.c inet_sockets.c get_config.c
 
 clean:
 	rm -rf server
-	rm -rf client
 	rm -rf *.o
+	rm -rf client
