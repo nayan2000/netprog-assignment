@@ -1,5 +1,5 @@
-#ifndef SERVER_UTILITIES_H
-#define SERVER_UTILITIES_H
+#ifndef CLUSTER_SERVER_H
+#define CLUSTER_SERVER_H
 
 #include "basic.h"
 #include "get_config.h"
