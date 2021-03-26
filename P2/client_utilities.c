@@ -147,12 +147,14 @@ void clear_screen(){
 bool process_command(char *command){
     bool ignore;
     size_t max_cmd_sz = CMD_SZ + 1;
-
+    
     /* Get command from the terminal */
     int cmd_sz = getline(&command, &max_cmd_sz, stdin);
     if(cmd_sz == -1 || cmd_sz == 0 || strcmp(command, "\n") == 0)
         return ignore = true;
         
     command[cmd_sz -1] = 0; /*Remove new line*/
+    
     return ignore = false;
 }
+

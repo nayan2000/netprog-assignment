@@ -110,9 +110,11 @@ void handle_request(int cfd, char * address_string){
 			else{
 				read_buf out_reader;
 				bzero(&out_reader, sizeof(reader));
-
+				printf("Node ID : %s, ", node_id);
 				int i = atoi(node_id + 1);
+				printf("Value : %d\n", i);
 				char *ip = client_ips[i];
+				printf("Node IP : %s\n", ip);
 				int connfd = inet_connect(ip, CLIENT_PORT, SOCK_STREAM);
 				if(connfd < 0){
 					perror(RED"Connect error while executing child command"RESET);
@@ -124,21 +126,25 @@ void handle_request(int cfd, char * address_string){
 				strcpy(send_buf, command);
 				if(strlen(input_buf))
 					strcpy(send_buf+strlen(command)+1, input_buf);
-
+				
 				int len = strlen(command) + strlen(input_buf) + 2;
 				/* command-0-input_buf$-0*/
+				puts("Send buf:");
+				puts(send_buf);
+				puts(send_buf + strlen(send_buf) + 1);
 				int nbytes = write(connfd, send_buf, len);
 
 				if(nbytes != len) {
 					perror(RED"WRITE"RESET);
 				}
-
+				bzero(input_buf, strlen(input_buf)+1);
 				inp_sz = readline_buf(&reader, input_buf, MAX_OUTPUT+1);
 				/* input_buf$ */
 				input_buf[inp_sz] = 0;
 				inp_sz++;
 				close(connfd);
 			}
+			temp = temp->next;
 		}
 		write(cfd, input_buf, inp_sz);
 	}

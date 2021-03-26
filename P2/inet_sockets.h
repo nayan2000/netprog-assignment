@@ -27,7 +27,7 @@
 
 #define RL_MAX_BUF 100
 
-typedef struct read_buf {
+typedef struct read_buf{
     int     fd;                 /* File descriptor from which to read */
     char    buf[RL_MAX_BUF];    /* Current buffer from file */
     int     next;               /* Index of next unread character in 'buf' */
