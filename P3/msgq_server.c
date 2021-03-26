@@ -3,6 +3,14 @@
 hashmap* map;
 group_list groups;
 user_list users;
+int serverId;
+void sighandler(int sig){
+    msgctl(serverId, IPC_RMID, NULL);
+}
+void exit_handler(){
+    msgctl(serverId, IPC_RMID, NULL);
+}
+
 
 int group_to_id(char* groupname){
     for(int i = 0; i < groups.size; i++){
@@ -52,8 +60,6 @@ void setup_client_msgq(const request_msg *req){
 }
 
 void serve_request(const request_msg *req){
-    int fd, i;
-    ssize_t numRead;
     response_msg resp;
     bzero(&resp, sizeof(resp));
 
@@ -75,7 +81,7 @@ void serve_request(const request_msg *req){
                 msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
             }
             else{
-                sprintf(resp.data, "Group Created %s - ID %d\n---\n", data, ret);
+                sprintf(resp.data, "Group Created %s - ID %d\n---\n", data, group_to_id(data));
                 msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
             }
             break;
@@ -94,7 +100,7 @@ void serve_request(const request_msg *req){
             break;
         case 'j':
             resp.mtype = RESP_MT_ACK;
-            i = group_to_id(data);
+            int i = group_to_id(data);
             /* data contains group name */
             if(is_group_member(data, req->client_qid)){
                 sprintf(resp.data, "Already a member of the group : %s - ID %d\n---\n", data, i);
@@ -131,7 +137,7 @@ void serve_request(const request_msg *req){
                     strcat(others.data, data);
                     strcat(others.data, "\n---\n");
                     for(int j = 0; j < groups.list[i].size; j++) {
-                        if(groups.list[ret].users[j] == uid) {
+                        if(groups.list[i].users[j] == uid) {
                             continue;
                         }
                         others.mtype = RESP_MT_DATA;
@@ -142,13 +148,13 @@ void serve_request(const request_msg *req){
                }
                else{
                     resp.mtype = RESP_MT_NOT_MEMBER;
-                    sprintf(resp.data, "\nCan't send messages : Not a member of the group %s : %d\n---\n", args, ret);
+                    sprintf(resp.data, "\nCan't send messages : Not a member of the group %s : %d\n---\n", args, i);
                     msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
                }
             }
             else{
                 resp.mtype = RESP_MT_GROUP_NO_EXIST;
-                sprintf(resp.data, "\nGroup does not exist\nNew Group Created %s : %d\n---\n", args, ret);
+                sprintf(resp.data, "\nGroup does not exist\nNew Group Created %s : %d\n---\n", args, i);
                 msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
             }
             break;
@@ -172,26 +178,30 @@ void serve_request(const request_msg *req){
                 }
             }
             if(found){
-                sprintf(resp.data, "\nSent messages to the user %s : %d\n", args, ret);
+                sprintf(resp.data, "\nSent messages to the user %s : %d\n", args, qid);
                 msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
             }
             else{
                 resp.mtype = RESP_MT_USER_NO_EXIST;
-                sprintf(resp.data, "\nUser %s does not exist : %d\n", args, ret);
+                sprintf(resp.data, "\nUser %s does not exist : %d\n", args, qid);
                 msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
             }
+        
         default:
             break;    
     }
 }
 
 int main(int argc, char *argv[]){
+    atexit(exit_handler);
+    signal(SIGINT, sighandler);
+    signal(SIGQUIT, sighandler);
+    signal(SIGTERM, sighandler);
+    signal(SIGTSTP, sighandler);
     struct request_msg req;
-    ssize_t msgLen;
-    int serverId;
+    ssize_t msgLen;int serverId;
     
-    printf("here\n");
-
+    map = (hashmap*)malloc(sizeof(hashmap));
     create_hm(map, MAX_USERS);
     bzero(&groups, sizeof(groups));
     bzero(&users, sizeof(users));
@@ -199,30 +209,49 @@ int main(int argc, char *argv[]){
     
     /* Create server message queue */
     serverId = msgget(SERVER_KEY, IPC_CREAT | IPC_EXCL |
-                            S_IRUSR | S_IWUSR | S_IWGRP);
+                            0777);
     if (serverId == -1){
         perror(RED"msgget"RESET);
         exit(0);
     }
 
     /* Read requests, handle iteratively */
-
+    printf(YELLOW"**********SERVER STARTED*********\n"RESET);
     for(;;){
         msgLen = msgrcv(serverId, &req, sizeof(request_msg) - sizeof(long), 0, 0);
+        printf("Request Recieved\n");
         if (msgLen == -1) {
-            if (errno == EINTR)         /* Interrupted by SIGCHLD handler? */
-                continue;               /* ... then restart msgrcv() */
-            perror(RED"msgrcv"RESET);           /* Some other error */
-            break;                      /* ... so terminate loop */
+            perror(RED"msgrcv"RESET);          
+            break;                      
         }
-        users.list[users.size] = req.client_qid;
-        (users.size)++;
-        setup_client_msgq(&req);
+        if(req.command == 'n'){
+            response_msg resp;
+            bzero(&resp, sizeof(resp));
+            if(!has_key(map, req.uname)){
+                resp.mtype = RESP_MT_USER_NO_EXIST;
+                users.list[users.size] = req.client_qid;
+                (users.size)++;
+                setup_client_msgq(&req);
+                msgsnd(req.client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
+            }
+            else{
+                resp.mtype = RESP_MT_USER_EXIST;
+                int qid = get(map, req.uname);
+                sprintf(resp.data, "%d", qid);
+                msgsnd(req.client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
+            }
+            continue;
+        }
+        
+        
         serve_request(&req);
     }
 
     /* If msgrcv()  fails, remove server MQ and exit */
-
+    for(int i = 0; i < users.size; i++){
+        if (msgctl(users.list[i], IPC_RMID, NULL) == -1)
+        perror("msgctl");
+    }
     if (msgctl(serverId, IPC_RMID, NULL) == -1)
         perror("msgctl");
     exit(EXIT_SUCCESS);

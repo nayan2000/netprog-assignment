@@ -1,5 +1,11 @@
 #include "msgq_client.h"
-
+int clientId;
+void sighandler(int sig){
+    msgctl(clientId, IPC_RMID, NULL);
+}
+void exit_handler(){
+    msgctl(clientId, IPC_RMID, NULL);
+}
 int getReqSize(request_msg* req) {
     return sizeof(req->client_qid) + sizeof(req->uname) + sizeof(req->command) + sizeof(req->args) + sizeof(req->data);
 }
@@ -9,45 +15,64 @@ int getResSize(response_msg* res) {
 }
 
 int main() {
+    atexit(exit_handler);
+    signal(SIGINT, sighandler);
+    signal(SIGQUIT, sighandler);
+    signal(SIGTERM, sighandler);
+    signal(SIGTSTP, sighandler);
     int ch = -1;
     // SETUP MESSAGE QUEUE
-    char uname[20];
+    char uname[20] = {0};
     printf("Enter your username: ");
     scanf("%s", uname);
-    
+    printf("%s - uname\n", uname);
     // CREATE NEW MSGQ
-    int clientId = msgget(IPC_PRIVATE, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IWGRP);
+    clientId = msgget(IPC_PRIVATE, IPC_CREAT | IPC_EXCL | 0777);
     request_msg initreq;
+    bzero(&initreq, sizeof(initreq));
+    initreq.mtype = 1;
+
     initreq.client_qid = clientId;
     strcpy(initreq.uname, uname);
     initreq.command = 'n';
-    msgsnd(SERVER_KEY, &initreq, getReqSize(&initreq), IPC_NOWAIT);
+    int serverId = msgget(SERVER_KEY, 
+                            0755);
 
-    // CHILD - HANDLE MESSAGES
-    //int p[2]; // 0 - READ, 1 - WRITE
-    //pipe(p);
-    if(!fork()) {
-        //close(1);
-        //dup(p[1]);
-
-        response_msg res;
-
-        while(1) {
-            msgrcv(clientId, &res, getResSize(&res), RESP_MT_DATA, 0);
-            printf("%s", res.data);
-        }
-
+    if (serverId == -1){
+        perror(RED"server:msgget"RESET);
+        exit(0);
     }
-    //close(0);
-    //dup(p[0]);
 
+    if(msgsnd(serverId, &initreq, sizeof(request_msg)-sizeof(long), 0) == -1){
+        perror("msgsnd to server");
+        exit(0);
+    }
+
+    response_msg res;
+    bzero(&res, sizeof(res));
+    msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0);
+
+    if(res.mtype == RESP_MT_USER_EXIST){
+        msgctl(clientId, IPC_RMID, NULL);
+        clientId = atoi(res.data);
+    }
+    // CHILD - HANDLE MESSAGES
+    // pid_t child = fork();
+    // if(child == 0) {
+    //     response_msg res;
+
+    //     while(1){
+    //         msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0);
+    //         printf("%s\n", res.data);
+    //     }
+
+    // }
     // MAIN LOOP
     while(1) {
         request_msg req;
         req.client_qid = clientId;
 
-        response_msg res;
-
+        req.mtype = 1;
         printf("%s\n", "-----------------------------------------------");
         printf("%s\n", "                  CLIENT MENU                  ");
         printf("%s\n", "-----------------------------------------------");
@@ -57,7 +82,11 @@ int main() {
         printf("%s\n", "4. Send message to user\n");
         printf("%s\n", "5. Send message to group\n");
         printf("%s\n", "6. Exit\n");
+        printf(GREEN">> "RESET);
+        fflush(stdout);
         scanf("%d", &ch);
+        if((char)ch == '\n') continue;
+        fflush(stdout);
         if(ch == 1) {
             char gname[MAX_SIZE];
             printf("Enter group name to create: ");
@@ -93,15 +122,16 @@ int main() {
             strcpy(req.data, msg);
             req.command = 'g';
         } else if(ch == 6) {
-            break;
-        } else {
+            exit(0);
+            // kill(child, SIGTERM);
+        } else{
             printf("Invalid option. Try again\n");
         }
 
-        msgsnd(SERVER_KEY, &req, getReqSize(&req), IPC_NOWAIT);
+        msgsnd(serverId, &req, sizeof(request_msg) - sizeof(long), IPC_NOWAIT);
 
         // WAIT FOR REPLY FROM SERVER
-        msgrcv(clientId, &res, getResSize(&res), -5, 0);
+        msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0);
 
         printf("%s", res.data);
 

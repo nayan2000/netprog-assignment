@@ -12,7 +12,7 @@
 typedef struct request_msg {               
     long mtype;                        
     int  client_qid;                      /* ID of client's message queue */
-    char uname[20];
+    char uname[MAX_SIZE];
     char command;
     char args[MAX_SIZE];
     char data[MAX_SIZE];
@@ -48,6 +48,7 @@ typedef struct response_msg{                 /* Responses (server to client) */
 #define RESP_MT_USER_NO_EXIST 4             /* User doesn't exist. Can't send private message */
 #define RESP_MT_ACK 5                       /* Message contains successful execution acknowlegement */
 #define RESP_MT_DATA 6                      /* Message contains data */
+#define RESP_MT_USER_EXIST 7
 
 int group_to_id(char*);
 char* id_to_group(int);

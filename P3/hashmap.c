@@ -14,7 +14,7 @@ size_t hash(char *str, size_t size){
 }
 
 void create_hm(hashmap *map, size_t cap){
-	map->buckets = (bucket_node**) malloc(sizeof(bucket_node*)cap);
+	map->buckets = (bucket_node**) malloc(sizeof(bucket_node*)*cap);
 	map->capacity = cap;
 	size_t i;
 
@@ -77,7 +77,7 @@ int get(hashmap *map, char *key){
 }
 
 int has_key(hashmap *map, char *key){
-	return get(map, key) == NULL ? 0 : 1;
+	return get(map, key) == -1 ? 0 : 1;
 }
 
 
@@ -150,7 +150,7 @@ char* get_r(hashmap_r *map, int key){
 	while(ptr){
 		if(ptr->key == key){
 			char* uname = (char*)malloc(sizeof(char) * 20);
-            strcpy(uname, ptr->key);
+            strcpy(uname, ptr->val);
             return uname;
         }
 
