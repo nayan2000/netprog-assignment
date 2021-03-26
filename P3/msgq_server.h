@@ -12,7 +12,7 @@
 typedef struct request_msg {               
     long mtype;                        
     int  client_qid;                      /* ID of client's message queue */
-    char* uname;
+    char uname[20];
     char command;
     char args[MAX_SIZE];
     char data[MAX_SIZE];
