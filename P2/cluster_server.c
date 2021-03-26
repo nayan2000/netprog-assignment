@@ -1,30 +1,8 @@
 #include "cluster_server.h"
 char **client_ips = NULL;
 
-/*
-int is_alive(char *ipaddr){
-	int sockfd;
-	struct sockaddr_in serveraddr;
-	if((sockfd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP)) < 0)
-			perror("Socket: Open");
-	serveraddr.sin_port = htons(atoi(SERV_PORT));
-	serveraddr.sin_family = AF_INET;
-	serveraddr.sin_addr.s_addr = inet_addr(ipaddr);
-	printf("Inside is_alive() func\n");
-	if(connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0){
-		close(sockfd);
-		return 0;
-	}
-	else{
-		close(sockfd);
-		return 1;
-	}
-}
-*/
-
 bool handle_nodes_cmd(char* cmd, char* buf){
 	if(strcmp(cmd, "nodes") == 0) {
-		printf("Here\n");
 		char suffix[50] = {0};
 		for(int i = 1; i < MAX_NODES+1; i++){
 			char *ip = client_ips[i];
@@ -56,8 +34,6 @@ void handle_request(int cfd, char * address_string){
 		
 		int inp_sz = 0;
 		if(handle_nodes_cmd(cmd, input_buf)){
-			printf("Input sent :\n");
-			puts(input_buf);
 			write(cfd, input_buf, strlen(input_buf) + 1);
 			continue;
 		}
@@ -129,9 +105,9 @@ void handle_request(int cfd, char * address_string){
 				
 				int len = strlen(command) + strlen(input_buf) + 2;
 				/* command-0-input_buf$-0*/
-				puts("Send buf:");
-				puts(send_buf);
-				puts(send_buf + strlen(send_buf) + 1);
+				// puts("Send buf:");
+				// puts(send_buf);
+				// puts(send_buf + strlen(send_buf) + 1);
 				int nbytes = write(connfd, send_buf, len);
 
 				if(nbytes != len) {

@@ -14,7 +14,6 @@ void trim(char *s, bool space);
 char* get_path(char* exe);
 char** tokenise(char* command);
 void redirect_desc_io(int oldfd, int newfd);
-char* check_redirection(char* command, int in, int out);
 void clear_screen();
 bool process_command(char *command);
 

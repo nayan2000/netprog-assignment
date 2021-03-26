@@ -200,8 +200,8 @@ ssize_t readline_buf(read_buf *rb, char *buffer, size_t n)
         if (c == '$')
             break;
     }
-    printf(YELLOW"Read Size : %ld\n"RESET, cnt);
-    printf(YELLOW"Read Value :\n%s"RESET, buffer);
-    printf("\n%s\n", buffer + strlen(buffer) + 1);
+    // printf(YELLOW"Read Size : %ld\n"RESET, cnt);
+    // printf(YELLOW"Read Value :\n%s"RESET, buffer);
+    // printf("\n%s\n", buffer + strlen(buffer) + 1);
     return cnt;
 }

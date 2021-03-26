@@ -1,11 +1,4 @@
 #include "client_utilities.h"
-void handler(int sig){
-    // if(sig == SIGCHLD){
-    //     int status;
-    //     while(waitpid(-1, &status, WNOHANG) > 0);
-    //     raise(SIGTERM);
-    // }
-}
 
 void handle_request(int cfd){
     ssize_t nread = 0;
@@ -23,6 +16,8 @@ void handle_request(int cfd){
         char* command = strdup(cmd_out);
         char* temp = cmd_out + strlen(command) + 1;
         char* input = strdup(temp);
+
+        char** args = tokenise(command);
         // puts("Seperated values :");
         // puts(command);
         // puts(input);
@@ -40,7 +35,7 @@ void handle_request(int cfd){
             if(strlen(input)){
                 write(wpipes[1], input, strlen(input) + 1);
             }
-            char output[MAX_BUF_SZ] = {'\0'};
+            char* output = (char*)malloc(sizeof(char)*MAX_BUF_SZ);
             int ch;
             switch(ch = fork()){
                 case 0:;
@@ -54,11 +49,7 @@ void handle_request(int cfd){
                     redirect_desc_io(rpipes[1], STDOUT_FILENO);
                 
                     fprintf(stderr, PURPLE"Executing current command : %s\n"RESET, command);
-                    if(strlen(input))
-                        command = check_redirection(command, wpipes[0], rpipes[1]);
-                    else
-                        command = check_redirection(command, STDIN_FILENO, rpipes[1]);
-                    char** args = tokenise(command);
+                    
                     char *path = get_path(args[0]);
                     if (path == NULL){
                         fprintf(stderr, RED"ERROR : %s: PROGRAM NOT FOUND\n"RESET, args[0]);
@@ -75,23 +66,33 @@ void handle_request(int cfd){
                     close(rpipes[1]);
                     waitpid(ch, NULL, WUNTRACED);
                     read(rpipes[0], output, MAX_BUF_SZ);
-                    // fputs(output, stderr);
                     // fprintf(stderr, "%ld\n", strlen(output)); 
             }
-            strcat(output, "$");
-            write(cfd, output, strlen(output) + 1);
+            strcat(output+2, "$");
+            if(strcmp(args[0], "sort") == 0){
+                strcat(output+2, "$");
+                write(cfd, output+2, strlen(output+2) + 1);
+            }
+            else{
+                strcat(output, "$");
+                write(cfd, output, strlen(output) + 1);
+            }free(output);
         }
     }
     if(nread == 0){
-        fprintf(stderr, "Here\n");
         close(cfd);
     }
 }
 
 int main(){
-    signal(SIGCHLD, handler);
-    int p[2];
-    pipe(p);
+    clear_screen();
+    int lfd = inet_listen(CLIENT_PORT, BACKLOG, NULL);
+    if(lfd == -1){
+        perror(RED"CLIENT SIDE: LISTEN ERROR"RESET);
+        exit(EXIT_FAILURE);
+    }
+    printf(YELLOW"CLIENT SIDE: SERVER STARTED\n"RESET);
+            
     pid_t ch = fork();
     switch(ch){
         case -1:;
@@ -103,13 +104,7 @@ int main(){
             if(connfd == -1){
                 perror(RED"CLIENT SIDE: MAIN SERVER DOWN"RESET);
                 exit(0);
-
             }
-            close(p[1]);
-            int dummy;
-            read(p[0], &dummy, 1);
-            close(p[0]);
-            clear_screen();
             printf("**************** INPUT WINDOW *******************\n");
 
             for(;;){
@@ -133,14 +128,15 @@ int main(){
                 bzero(&reader, sizeof(reader));
                 readline_buf_init(connfd, &reader);
                 size_t nread = readline_buf(&reader, out, MAX_OUTPUT);
-                out[nread-1] = 0;
+                out[nread-1] = 0; /* Remove $ */
                 if(nread < 0){
                     perror("Read");
                     break;
                 }
                 if(nread == 0){
                     perror(RED"CLIENT SIDE: MAIN SERVER ABNORMAL TERMINATION"RESET);
-                    exit(EXIT_FAILURE);
+                    break;
+                    
                 }
                 out[nread] = '\0';
                 printf("-------------Output-------------\n\n");
@@ -150,18 +146,9 @@ int main(){
             }
             close(connfd);
             kill(getppid(), SIGTERM);
-            _exit(0);
+            _exit(EXIT_FAILURE);
             break;
         default:;
-            close(p[0]);
-            int lfd = inet_listen(CLIENT_PORT, BACKLOG, NULL);
-            if(lfd == -1){
-                perror(RED"CLIENT SIDE: LISTEN ERROR"RESET);
-                exit(EXIT_FAILURE);
-            }
-            printf(YELLOW"CLIENT SIDE: SERVER STARTED\n"RESET);
-            
-            close(p[1]);
             int cfd;
             for(;;) {
                 if((cfd = accept(lfd, NULL, NULL)) < 0) {
@@ -194,7 +181,6 @@ int main(){
                         break;
                 }
             }
-            
             break;
     }
 }
