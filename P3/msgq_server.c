@@ -30,7 +30,7 @@ char* id_to_group(int i){
 bool is_group_member(char* groupname, int client){
     int i = group_to_id(groupname);
     if(i == -1) return false;
-    for(int j = 0; j < groups.list[i].size; i++){
+    for(int j = 0; j < groups.list[i].size; j++){
         if(client == groups.list[i].users[j])
             return true;
     }
@@ -42,6 +42,7 @@ int create_and_add_group(int size, char* groupname, int client){
     if(i >= 0) return i;
     group g;
     bzero(&g, sizeof(g));
+
     g.size = size;
     strcpy(g.groupname, groupname);
     g.users[0] = client;
@@ -69,15 +70,15 @@ void serve_request(const request_msg *req){
         data = strdup(req->data);
     if(strlen(req->args))
         args = strdup(req->args);
-
+    int i;
     switch(command){
         case 'c':
             resp.mtype = RESP_MT_ACK;
             /* data contains group name */
-            int ret = create_and_add_group(1, data, req->client_qid);
-            if(ret >= 0){
+            i = create_and_add_group(1, data, req->client_qid);
+            if(i >= 0){
                 resp.mtype = RESP_MT_GROUP_EXISTS;
-                sprintf(resp.data, "Group %s already exists - ID %d\n---\n", data, ret);
+                sprintf(resp.data, "Group %s already exists - ID %d\n---\n", data, i);
                 msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
             }
             else{
@@ -100,8 +101,9 @@ void serve_request(const request_msg *req){
             break;
         case 'j':
             resp.mtype = RESP_MT_ACK;
-            int i = group_to_id(data);
+            i = group_to_id(data);
             /* data contains group name */
+            printf("Client ID :%d, uname %s, group %s, group id : %d\n", req->client_qid, req->uname, data, i);
             if(is_group_member(data, req->client_qid)){
                 sprintf(resp.data, "Already a member of the group : %s - ID %d\n---\n", data, i);
                 msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
@@ -171,7 +173,7 @@ void serve_request(const request_msg *req){
                     bzero(&others, sizeof(others));
                     sprintf(others.data, "\nMessage from user : %s - ID %d\n---\n", req->uname, req->client_qid);
                     strcat(others.data, data);
-                    strcat(others.data, "---\n");
+                    strcat(others.data, "\n---\n");
                     others.mtype = RESP_MT_DATA;
                     msgsnd(qid, &others, strlen(others.data) + 1, IPC_NOWAIT);
                     break;
@@ -228,14 +230,14 @@ int main(int argc, char *argv[]){
             response_msg resp;
             bzero(&resp, sizeof(resp));
             if(!has_key(map, req.uname)){
-                resp.mtype = RESP_MT_USER_NO_EXIST;
+                resp.mtype = RESP_MT_CHECK_USER_NO_EXIST;
                 users.list[users.size] = req.client_qid;
                 (users.size)++;
                 setup_client_msgq(&req);
                 msgsnd(req.client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
             }
             else{
-                resp.mtype = RESP_MT_USER_EXIST;
+                resp.mtype = RESP_MT_CHECK_USER_EXIST;
                 int qid = get(map, req.uname);
                 sprintf(resp.data, "%d", qid);
                 msgsnd(req.client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);

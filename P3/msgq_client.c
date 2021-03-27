@@ -2,6 +2,7 @@
 int clientId;
 void sighandler(int sig){
     msgctl(clientId, IPC_RMID, NULL);
+    raise(SIGTERM);
 }
 void exit_handler(){
     msgctl(clientId, IPC_RMID, NULL);
@@ -15,6 +16,7 @@ int getResSize(response_msg* res) {
 }
 
 int main() {
+    setbuf(stdout, NULL);
     atexit(exit_handler);
     signal(SIGINT, sighandler);
     signal(SIGQUIT, sighandler);
@@ -50,11 +52,22 @@ int main() {
 
     response_msg res;
     bzero(&res, sizeof(res));
-    msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0);
 
-    if(res.mtype == RESP_MT_USER_EXIST){
+    msgrcv(clientId, &res, RESP_MSG_SIZE, -2, 0);
+
+    /* User logged out and then logs in again */ 
+    if(res.mtype == RESP_MT_CHECK_USER_EXIST){ 
         msgctl(clientId, IPC_RMID, NULL);
         clientId = atoi(res.data);
+
+        /* Retrieve all pending messages */
+        while(msgrcv(clientId, &res, RESP_MSG_SIZE, 0, IPC_NOWAIT) != -1){
+            
+            printf("%s\n", res.data);
+        }
+    }
+    if(res.mtype == RESP_MT_CHECK_USER_NO_EXIST){ /* New User */
+        
     }
     // CHILD - HANDLE MESSAGES
     // pid_t child = fork();
@@ -68,10 +81,12 @@ int main() {
 
     // }
     // MAIN LOOP
-    while(1) {
+    while(1){
         request_msg req;
-        req.client_qid = clientId;
+        bzero(&req, sizeof(req));
 
+        req.client_qid = clientId;
+        strcpy(req.uname, uname);
         req.mtype = 1;
         printf("%s\n", "-----------------------------------------------");
         printf("%s\n", "                  CLIENT MENU                  ");
@@ -81,39 +96,42 @@ int main() {
         printf("%s\n", "3. Join group\n");
         printf("%s\n", "4. Send message to user\n");
         printf("%s\n", "5. Send message to group\n");
-        printf("%s\n", "6. Exit\n");
+        printf("%s\n", "6. Logout\n");
+        printf("%s\n", "7. Deregister\n");
         printf(GREEN">> "RESET);
         fflush(stdout);
         scanf("%d", &ch);
         if((char)ch == '\n') continue;
+        fflush(stdin);
         fflush(stdout);
         if(ch == 1) {
-            char gname[MAX_SIZE];
+            char gname[MAX_SIZE] = {0};
             printf("Enter group name to create: ");
             scanf("%s", gname);
             strcpy(req.data, gname);
             req.command = 'c';
-        } else if(ch == 2) {
+        }else if(ch == 2){
             req.command = 'l';
-        } else if(ch == 3) {
-            char gname[MAX_SIZE];
+        }else if(ch == 3){
+            char gname[MAX_SIZE] = {0};
             printf("Enter group name to join: ");
             scanf("%s", gname);
             strcpy(req.data, gname);
             req.command = 'j';
-        } else if(ch == 4) {
-            char uname[MAX_SIZE];
-            char msg[MAX_SIZE];
+        }else if(ch == 4){
+            char uname[MAX_SIZE] = {0};
+            char msg[MAX_SIZE] = {0};
             printf("Enter user name to send message to: ");
+            
             scanf("%s", uname);
             printf("Enter message to send: ");
             scanf("%s", msg);
             strcpy(req.args, uname);
             strcpy(req.data, msg);
             req.command = 'u';
-        } else if(ch == 5) {
-            char gname[MAX_SIZE];
-            char msg[MAX_SIZE];
+        }else if(ch == 5){
+            char gname[MAX_SIZE] = {0};
+            char msg[MAX_SIZE] = {0};
             printf("Enter group name to send message to: ");
             scanf("%s", gname);
             printf("Enter message to send: ");
@@ -121,10 +139,15 @@ int main() {
             strcpy(req.args, gname);
             strcpy(req.data, msg);
             req.command = 'g';
-        } else if(ch == 6) {
-            exit(0);
+        }else if(ch == 6){
+            break;
+            
             // kill(child, SIGTERM);
-        } else{
+        }else if(ch == 7){
+            break;
+            // kill(child, SIGTERM);
+        }
+        else{
             printf("Invalid option. Try again\n");
         }
 
@@ -134,7 +157,14 @@ int main() {
         msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0);
 
         printf("%s", res.data);
+        fflush(stdout);
 
+    }
+    if(ch == 6){
+        _exit(0);
+    }
+    if(ch == 7){
+        exit(0);
     }
 
     return 0;

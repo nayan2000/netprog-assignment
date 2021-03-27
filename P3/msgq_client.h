@@ -22,13 +22,15 @@ typedef struct response_msg{                 /* Responses (server to client) */
 }response_msg;
 
 /* Types for response messages sent from server to client */
-#define RESP_MT_NOT_MEMBER 1                /* User not a member oof given group */
-#define RESP_MT_GROUP_EXISTS 2              /* Group already exixts. Can't create group */
-#define RESP_MT_GROUP_NO_EXIST 3            /* Group doesn't exist. Make new and join */
-#define RESP_MT_USER_NO_EXIST 4             /* User doesn't exist. Can't send private message */
-#define RESP_MT_ACK 5                       /* Message contains successful execution acknowlegement */
-#define RESP_MT_DATA 6                      /* Message contains data */
-#define RESP_MT_USER_EXIST 7
+#define RESP_MT_CHECK_USER_EXIST 1
+#define RESP_MT_CHECK_USER_NO_EXIST 2             /* User doesn't exist. Can't send private message */
+
+#define RESP_MT_NOT_MEMBER 3                /* User not a member oof given group */
+#define RESP_MT_GROUP_EXISTS 4              /* Group already exixts. Can't create group */
+#define RESP_MT_GROUP_NO_EXIST 5            /* Group doesn't exist. Make new and join */
+#define RESP_MT_ACK 6                       /* Message contains successful execution acknowlegement */
+#define RESP_MT_DATA 7                      /* Message contains data */
+#define RESP_MT_USER_EXIST 8
 
 int getReqSize(request_msg* req);
 int main();
