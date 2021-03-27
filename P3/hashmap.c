@@ -79,9 +79,3 @@ int get(hashmap *map, char *key){
 int has_key(hashmap *map, char *key){
 	return get(map, key) == -1 ? 0 : 1;
 }
-
-
-
-
-/*Reverse Map */
-s
