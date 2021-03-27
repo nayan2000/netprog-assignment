@@ -251,10 +251,9 @@ int main(int argc, char *argv[]){
 
     /* If msgrcv()  fails, remove server MQ and exit */
     for(int i = 0; i < users.size; i++){
-        if (msgctl(users.list[i], IPC_RMID, NULL) == -1)
-        perror("msgctl");
+        msgctl(users.list[i], IPC_RMID, NULL);
     }
     if (msgctl(serverId, IPC_RMID, NULL) == -1)
-        perror("msgctl");
+        perror("msgctl:server");
     exit(EXIT_SUCCESS);
 }
