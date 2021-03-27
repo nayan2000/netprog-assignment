@@ -83,6 +83,7 @@ bool process_command(char *command){
     
     /* Get command from the terminal */
     int cmd_sz = getline(&command, &max_cmd_sz, stdin);
+    fflush(stdin);
     if(cmd_sz == -1 || cmd_sz == 0 || strcmp(command, "\n") == 0)
         return ignore = true;
         
