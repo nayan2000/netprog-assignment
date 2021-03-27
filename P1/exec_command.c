@@ -46,6 +46,7 @@ char** tokenise(char* command){
 }
 
 bool exec_curr_cmd(char* command, int t, int in, int out){
+    
     if(t == (int)SPIPE || t == -1){
         printf(PURPLE"Executing current command : %s\n"RESET, command);
         preprocess_pipe_io(in, out);
@@ -259,9 +260,9 @@ bool preprocess_pipe_io(int in, int out){
 	fprintf(stdout, GREEN"\tPID: %d\n"RESET, getpid());
 	fprintf(stderr, GREEN"\tPGID: %d\n\n"RESET, getpgid(curr_pid));
 
-	fprintf(stderr, GREEN"\tReading from fd %d\n"RESET, in);
+	fprintf(stderr, GREEN"\tRead fd  : %d\n"RESET, in);
 	redirect_desc_io(in, STDIN_FILENO);
-    fprintf(stderr, GREEN"\tWriting to fd %d\n"RESET, out);
+    fprintf(stderr, GREEN"\tWrite fd : %d\n"RESET, out);
     fprintf(stderr, "--------------------------------------------------\n");
     redirect_desc_io(out, STDOUT_FILENO);
     return true;

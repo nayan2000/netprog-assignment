@@ -40,6 +40,8 @@ cmd_list* parse_inp(char* inp){
         while(tk[r] && tk[r] != '.'){
             r++;
         }
+        if(tk[r] == 0)
+            return NULL;
         args[0] = substr(tk, l, r);
         l = r + 1;
         while(tk[r]){

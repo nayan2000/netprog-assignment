@@ -1,10 +1,6 @@
-/********************************************
-2017B4A70696P   Abdul Kadir Khimani
-********************************************/
-
 /*Header Guard*/
-#ifndef HASHMAP_H
-#define HASHMAP_H
+#ifndef SC_TABLE_H
+#define SC_TABLE_H
 
 #include "basic.h"
 #define MAX_SC_TABLE_SIZE 40

@@ -1,4 +1,4 @@
-#include "hashmap.h"
+#include "sc_table.h"
 char* sc_table[MAX_SC_TABLE_SIZE];
 
 bool add_to_sc_table(int i, char* cmd){

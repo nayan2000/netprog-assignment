@@ -143,6 +143,22 @@ int main(int argc, char* argv[]){
         bool ignore = process_command(&isfg, command);
         if(ignore) continue;
         if(strcmp(command, "quit") == 0 || strcmp("exit", command) == 0) exit(EXIT_SUCCESS);
+        if(command[0] == 'c' && command[1] == 'd'){
+            if(strcmp("cd", command) == 0){
+                strcat(command, " ");
+                strcat(command, getenv("HOME"));
+            }
+            else if(command[3] = '~' && command[2] == ' '){
+                strcat(command, " ");
+                strcat(command, getenv("HOME"));
+            }
+            char *path = command + 3;
+            if (chdir(path) < 0) {
+                perror(RED"CD EXECUTION ERROR"RESET);
+                _exit(EXIT_FAILURE);
+            }
+            continue;
+        }
         /* Check for singular fg, bg, sc, and jobs command */
         bool ret = run_job(command);
         int status;

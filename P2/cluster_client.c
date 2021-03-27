@@ -18,15 +18,27 @@ void handle_request(int cfd){
         char* input = strdup(temp);
 
         char** args = tokenise(command);
+        char* output = (char*)malloc(sizeof(char)*MAX_BUF_SZ);
         // puts("Seperated values :");
         // puts(command);
         // puts(input);
-        if(command[0] == 'c' && command[1] == 'd' && command[2] == ' '){
+        if(command[0] == 'c' && command[1] == 'd'){
+            if(strcmp("cd", command) == 0){
+                strcat(command, " ");
+                strcat(command, getenv("HOME"));
+            }
+            else if(command[3] == '~' && command[2] == ' '){
+                strcat(command, " ");
+                strcat(command, getenv("HOME"));
+            }
             char *path = command + 3;
             if (chdir(path) < 0) {
                 perror(RED"CD EXECUTION ERROR"RESET);
                 _exit(EXIT_FAILURE);
             }
+            
+            strcpy(output, "Executed cd\n$");
+            write(cfd, output, strlen(output) + 1);
         }
         else {
             int rpipes[2], wpipes[2];
@@ -35,7 +47,7 @@ void handle_request(int cfd){
             if(strlen(input)){
                 write(wpipes[1], input, strlen(input) + 1);
             }
-            char* output = (char*)malloc(sizeof(char)*MAX_BUF_SZ);
+            output = (char*)malloc(sizeof(char)*MAX_BUF_SZ);
             int ch;
             switch(ch = fork()){
                 case 0:;
@@ -69,19 +81,21 @@ void handle_request(int cfd){
                     // fprintf(stderr, "%ld\n", strlen(output)); 
             }
             strcat(output+2, "$");
-            if(strcmp(args[0], "sort") == 0){
+            if(args && strcmp(args[0], "sort") == 0){
                 strcat(output+2, "$");
                 write(cfd, output+2, strlen(output+2) + 1);
             }
             else{
                 strcat(output, "$");
                 write(cfd, output, strlen(output) + 1);
-            }free(output);
+            }
+           
         }
+        free(output);
     }
-    if(nread == 0){
-        close(cfd);
-    }
+    // if(nread == 0){
+    //     close(cfd);
+    // }
 }
 
 int main(){
@@ -140,7 +154,7 @@ int main(){
                 }
                 out[nread] = '\0';
                 printf("-------------Output-------------\n\n");
-                printf("%s\n", out);
+                printf(YELLOW"%s"RESET"\n", out);
                 printf("--------------------------------\n");
                 fflush(stdin);
             }
@@ -162,25 +176,10 @@ int main(){
                 printf(GREEN"Handling server request\n"RESET);
                 fflush(stdout);
                 fflush(stdin);
-                pid_t child = fork();
-                switch(child){
-                    case -1:;
-                        printf(RED"CLIENT SIDE: CHILDREN CAN'T BE CREATED\n"RESET);	
-                        exit(EXIT_FAILURE);
-
-                    case 0:;
-                        int r = prctl(PR_SET_PDEATHSIG, SIGTERM);
-                        if (r == -1) { perror(0); exit(1); }
-                        if (getppid() == 1)
-                            exit(1);
-                        close(lfd);	
-                        handle_request(cfd);			
-                        _exit(EXIT_SUCCESS);
-                    default:
-                        close(cfd);
-                        break;
-                }
+                
+                handle_request(cfd);			
+                close(cfd);
             }
-            break;
+        
     }
 }
