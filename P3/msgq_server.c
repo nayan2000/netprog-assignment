@@ -30,7 +30,7 @@ char* id_to_group(int i){
 bool is_group_member(char* groupname, int client){
     int i = group_to_id(groupname);
     if(i == -1) return false;
-    for(int j = 0; j < groups.list[i].size; i++){
+    for(int j = 0; j < groups.list[i].size; j++){
         if(client == groups.list[i].users[j])
             return true;
     }

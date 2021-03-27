@@ -14,6 +14,16 @@ int getResSize(response_msg* res) {
     return sizeof(res->data);
 }
 
+void readLine(char* msg) {
+    int i = 0;
+    char in = 'a';
+    while(in != '\n') {
+        in = getc(stdin);
+        msg[i++] = in;
+    }
+    msg[i - 1] = '\0';
+}
+
 int main() {
     atexit(exit_handler);
     signal(SIGINT, sighandler);
@@ -21,6 +31,7 @@ int main() {
     signal(SIGTERM, sighandler);
     signal(SIGTSTP, sighandler);
     int ch = -1;
+    char* msg = (char*) malloc(MAX_SIZE);
     // SETUP MESSAGE QUEUE
     char uname[20] = {0};
     printf("Enter your username: ");
@@ -103,21 +114,21 @@ int main() {
             req.command = 'j';
         } else if(ch == 4) {
             char uname[MAX_SIZE];
-            char msg[MAX_SIZE];
             printf("Enter user name to send message to: ");
             scanf("%s", uname);
+            getc(stdin);
             printf("Enter message to send: ");
-            scanf("%s", msg);
+            readLine(msg);
             strcpy(req.args, uname);
             strcpy(req.data, msg);
             req.command = 'u';
         } else if(ch == 5) {
             char gname[MAX_SIZE];
-            char msg[MAX_SIZE];
             printf("Enter group name to send message to: ");
             scanf("%s", gname);
+            getc(stdin);
             printf("Enter message to send: ");
-            scanf("%s", msg);
+            readLine(msg);
             strcpy(req.args, gname);
             strcpy(req.data, msg);
             req.command = 'g';
