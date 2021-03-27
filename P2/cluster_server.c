@@ -131,8 +131,9 @@ void handle_request(int cfd, char * address_string){
 			write(cfd, input_buf, inp_sz);
 		}
 	}
-	free(address_string);
 	printf(GREEN"Client Exiting: %s\n"RESET, address_string);
+	free(address_string);
+
 	close(cfd);
 }
 
