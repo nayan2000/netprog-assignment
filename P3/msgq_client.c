@@ -147,7 +147,7 @@ int main() {
         _exit(0);
     }
    
-    // MAIN LOOP
+    /* Main Loop */
     while(1){
         request_msg req;
         bzero(&req, sizeof(req));

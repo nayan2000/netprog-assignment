@@ -113,8 +113,7 @@ bool run_job(char* command){
     token_list *list = parse_cmd(command);
     token_node* node = list->head;
     char** broken_cmd = break_loner_cmds(node->token); /* Returns a NULL if not fg, bg, sc, jobs */
-    if(list->size == 1 || strcmp("sc", broken_cmd[0]) == 0){ /*possibly fg, bg, jobs, shortcut*/
-        
+    if(list->size == 1 || (broken_cmd && strcmp("sc", broken_cmd[0]) == 0)){ /*possibly fg, bg, jobs, shortcut*/
         if(broken_cmd != NULL){
             if(strcmp(broken_cmd[0], "jobs") == 0){
                 print_jobs();
@@ -138,9 +137,11 @@ bool run_job(char* command){
         }
         
     }
-    for(int i = 0; i < MAX_SIZE_SINGLE_CMD; i++)
-        if(broken_cmd[i]) free(broken_cmd[i]);
-    free(broken_cmd);
+    if(broken_cmd){
+        for(int i = 0; i < MAX_SIZE_SINGLE_CMD; i++)
+            if(broken_cmd[i]) free(broken_cmd[i]);
+        free(broken_cmd);
+    }
     free(list);
     return false;
 }

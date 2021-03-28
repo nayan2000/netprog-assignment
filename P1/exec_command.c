@@ -190,7 +190,7 @@ char* check_redirection(char* command, int in, int out){
     char *file;
     trim(actual_command, true);
     
-    if(*(command + strlen(token) + 1) == '>'){ /* >> */
+    if(strstr(command, ">>")){ /* >> */
         token = strtok(NULL, ">");
         file = token;
         trim(file, true);
@@ -207,7 +207,7 @@ char* check_redirection(char* command, int in, int out){
             redirect_desc_io(fd, out);
         }
     }
-    else if(*(command + strlen(token)) == '>'){
+    else if(strstr(command, ">")){
         token = strtok(NULL, ">");
         file = token;
         trim(file, true);
@@ -223,8 +223,8 @@ char* check_redirection(char* command, int in, int out){
             redirect_desc_io(fd, out);
         }
     }
-    else if(*(command + strlen(token)) == '<'){
-        token = strtok(NULL, ">");
+    if(strstr(command, "<")){
+        token = strtok(NULL, "<");
         file = token;
         trim(file, true);
         trim(file, false);
