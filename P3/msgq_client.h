@@ -14,6 +14,7 @@ typedef struct request_msg {
     char command;
     char args[MAX_SIZE];
     char data[MAX_SIZE];
+    int t;
 }request_msg;
 
 typedef struct response_msg{                 /* Responses (server to client) */

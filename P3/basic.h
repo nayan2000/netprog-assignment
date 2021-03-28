@@ -23,6 +23,7 @@
 #include <stdio.h>       /* Standard I/O functions */
 #include <stdlib.h>      /* Prototypes of commonly used library functions */
 #include <math.h>		 /* Math manipulations */
+#include <time.h>
 
 #include <ctype.h>
 #include <sys/msg.h>
