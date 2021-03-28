@@ -225,6 +225,12 @@ int main() {
             break;
             
         }else if(ch == 7){
+            request_msg exit_req;
+            exit_req.client_qid = clientId;
+            strcpy(exit_req.uname, uname);
+            exit_req.mtype = 1;
+            exit_req.command = 'r';
+            msgsnd(serverId, &exit_req, sizeof(request_msg) - sizeof(long), IPC_NOWAIT);
             kill(child, SIGUSR2);
             break;
         }

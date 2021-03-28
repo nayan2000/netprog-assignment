@@ -61,6 +61,23 @@ void setup_client_msgq(const request_msg *req){
     free(username);
 }
 
+void remove_user_from_group(int cid) {
+    // CHECK ALL GROUPS
+    for(int i = 0; i < groups.size; ++i) {
+        for(int j = 0; j < groups.list[i].size; ++j) {
+            if(cid == groups.list[i].users[j]) {
+                // SWAP ID WITH CLIENT ID STORED AT LAST INDEX AND REDUCE SIZE BY 1
+                printf("\nRemoved %d from group %s\n", cid, groups.list[i].groupname);
+                int temp = groups.list[i].users[j];
+                groups.list[i].users[j] = groups.list[i].users[groups.list[i].size - 1];
+                groups.list[i].users[groups.list[i].size - 1] = temp;
+                groups.list[i].size--;
+                break;
+            }
+        }
+    }
+}
+
 void serve_request(const request_msg *req){
     response_msg resp;
     bzero(&resp, sizeof(resp));
@@ -204,6 +221,10 @@ void serve_request(const request_msg *req){
                 sprintf(resp.data, "\nUser %s does not exist : %d\n", args, qid);
                 msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
             }
+            break;
+        case 'r':
+            remove_user_from_group(req->client_qid);
+            break;
         
         default:
             break;    
@@ -239,7 +260,7 @@ int main(int argc, char *argv[]){
         msgLen = msgrcv(serverId, &req, sizeof(request_msg) - sizeof(long), 0, 0);
         printf("Request Recieved\n");
         if (msgLen == -1) {
-            perror(RED"msgrcv"RESET);          
+            perror(RED"msgrcv"RESET);        
             break;                      
         }
                 
