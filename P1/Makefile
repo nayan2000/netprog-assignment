@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-c
+CFLAGS=-c -g
 DEPS_PROG = *.o
 all: shell
 shell: $(DEPS_PROG)

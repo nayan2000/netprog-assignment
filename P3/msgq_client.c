@@ -8,14 +8,6 @@ void do_nothing(int sig){
 void exit_handler(){
     msgctl(clientId, IPC_RMID, NULL);
 }
-int getReqSize(request_msg* req) {
-    return sizeof(req->client_qid) + sizeof(req->uname) + sizeof(req->command) + sizeof(req->args) + sizeof(req->data);
-}
-
-int getResSize(response_msg* res) {
-    return sizeof(res->data);
-}
-
 /* Read characters from 'fd' until a newline is encountered. If a newline
   character is not encountered in the first (n - 1) bytes, then the excess
   characters are discarded. The returned string placed in 'buf' is

@@ -58,6 +58,17 @@ void print_list(token_list* list) {
     }
     printf("\n");
 }
+void free_list(token_list* list){
+    token_node* ptr = list->head;
+    token_node* next = NULL;
+    while(ptr){
+        next = ptr->next;
+        free(ptr->token);
+        free(ptr);
+        ptr = next;
+    }
+    free(list);
+}
 
 token_list* parse_cmd(char* command){
     token_list* list = (token_list*) malloc(sizeof(token_list));

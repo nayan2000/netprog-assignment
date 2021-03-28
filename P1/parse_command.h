@@ -24,5 +24,5 @@ char* substr(char*, int, int);
 token_list* add_command(token_list*, char*);
 void print_list(token_list*);
 token_list* parse_cmd(char*);
-
+void free_list(token_list* list);
 #endif

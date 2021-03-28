@@ -1,0 +1,11 @@
+-rw-rw-r-- 1 abdulkk49 abdulkk49  1112 Mar 24 14:09 basic.h
+-rw-rw-r-- 1 abdulkk49 abdulkk49  2793 Mar 23 16:04 parse_command.c
+-rw-rw-r-- 1 abdulkk49 abdulkk49   573 Mar 27 20:26 parse_command.h
+-rw-rw-r-- 1 abdulkk49 abdulkk49  3656 Mar 28 20:17 parse_command.o
+-rw-rw-r-- 1 abdulkk49 abdulkk49  1709 Mar 27 20:27 sc_table.c
+-rw-rw-r-- 1 abdulkk49 abdulkk49   288 Mar 27 20:26 sc_table.h
+-rw-rw-r-- 1 abdulkk49 abdulkk49  4432 Mar 28 20:17 sc_table.o
+-rwxrwxr-x 1 abdulkk49 abdulkk49 41240 Mar 28 20:17 shell
+-rw-rw-r-- 1 abdulkk49 abdulkk49  9874 Mar 27 23:37 shell.c
+-rw-rw-r-- 1 abdulkk49 abdulkk49   574 Mar 23 19:27 shell.h
+-rw-rw-r-- 1 abdulkk49 abdulkk49 12248 Mar 28 20:17 shell.o

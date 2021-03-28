@@ -31,7 +31,7 @@ bool remove_from_sc_table(int i, char* cmd){
     return true;
 }
 
-bool manage_sc_command(char** broken_cmd){
+bool manage_sc_command(char** broken_cmd, token_list* list){
     if(strcmp(broken_cmd[1], "-i") != 0 && strcmp(broken_cmd[1], "-d")){
         printf(RED"ERROR: INVALID COMMAND\n"RESET);
         return false;
@@ -48,6 +48,13 @@ bool manage_sc_command(char** broken_cmd){
         strcat(command, broken_cmd[i]);
         i+=1;
     }
+    token_node* node = list->head->next;
+    while(node){
+        strcat(command, " ");
+        strcat(command, node->token);
+        node = node->next;
+    }
+    puts(command);
     if(strcmp(broken_cmd[1], "-i") == 0){
         bool ret = add_to_sc_table(atoi(broken_cmd[2]), command);
         return ret;

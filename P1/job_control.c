@@ -111,9 +111,10 @@ char** break_loner_cmds(char* cmd){
 
 bool run_job(char* command){
     token_list *list = parse_cmd(command);
-    if(list->size == 1){ /*possibly fg, bg, jobs, shortcut*/
-        token_node* node = list->head;
-        char** broken_cmd = break_loner_cmds(node->token); /* Returns a NULL if not fg, bg, sc, jobs */
+    token_node* node = list->head;
+    char** broken_cmd = break_loner_cmds(node->token); /* Returns a NULL if not fg, bg, sc, jobs */
+    if(list->size == 1 || strcmp("sc", broken_cmd[0]) == 0){ /*possibly fg, bg, jobs, shortcut*/
+        
         if(broken_cmd != NULL){
             if(strcmp(broken_cmd[0], "jobs") == 0){
                 print_jobs();
@@ -125,7 +126,7 @@ bool run_job(char* command){
                 make_background(broken_cmd[1]);
             }
             else if(strcmp(broken_cmd[0], "sc") == 0){
-                manage_sc_command(broken_cmd);
+                manage_sc_command(broken_cmd, list);
             }
             else if(strcmp(broken_cmd[0], "psc") == 0){
                 print_sc_table();
@@ -137,5 +138,9 @@ bool run_job(char* command){
         }
         
     }
+    for(int i = 0; i < MAX_SIZE_SINGLE_CMD; i++)
+        if(broken_cmd[i]) free(broken_cmd[i]);
+    free(broken_cmd);
+    free(list);
     return false;
 }
