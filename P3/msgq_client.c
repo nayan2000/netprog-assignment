@@ -217,6 +217,8 @@ int main() {
             printf("Enter message to send: ");
             fflush(stdout);
             read_line(STDIN_FILENO, msg, MAX_SIZE);
+            printf("Auto delete timer duration(0 for no timer): ");
+            scanf("%d", &req.t);
             strcpy(req.args, gname);
             strcpy(req.data, msg);
             req.command = 'g';

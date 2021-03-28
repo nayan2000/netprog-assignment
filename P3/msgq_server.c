@@ -7,9 +7,11 @@ int serverId;
 
 void sighandler(int sig){
     msgctl(serverId, IPC_RMID, NULL);
+    exit(1);
 }
 void exit_handler(){
     msgctl(serverId, IPC_RMID, NULL);
+    exit(1);
 }
 
 
@@ -44,6 +46,7 @@ int create_and_add_group(int size, char* groupname, int client){
     group g;
     bzero(&g, sizeof(g));
 
+    g.msg_cnt = 0;
     g.size = size;
     strcpy(g.groupname, groupname);
     g.users[0] = client;
@@ -161,10 +164,19 @@ void serve_request(const request_msg *req){
             resp.mtype = RESP_MT_ACK;
             /* data contains the group message */
             /* args contain group name */
+            /* t contains auto delete timeout */
             int uid = req->client_qid;
             i = create_and_add_group(1, args, req->client_qid);
             if(i >= 0){
                if(is_group_member(args, uid)){
+                   // ADD RECEIVED MESSAGE TO MSG ARRAY OF GROUP
+                    gmsg g;
+                    strcpy(g.data, req->data);
+                    g.t = req->t;
+                    g.ct = time(NULL); // GIVES TIMESTAMP IN SEC
+                    groups.list[i].msgs[groups.list[i].msg_cnt] = g;
+                    (groups.list[i].msg_cnt)++;
+
                     response_msg others;
                     bzero(&others, sizeof(others));
                     sprintf(others.data, "\nMessage from group : %s - ID %d\n\t Username : %s - ID %d\n---\n", 
@@ -231,6 +243,13 @@ void serve_request(const request_msg *req){
     }
 }
 
+void delete_msgqs() {
+    for(int i = 0; i < users.size; i++){
+        msgctl(users.list[i], IPC_RMID, NULL);
+    }
+    msgctl(serverId, IPC_RMID, NULL);
+}
+
 int main(int argc, char *argv[]){
     atexit(exit_handler);
     signal(SIGINT, sighandler);
@@ -247,30 +266,43 @@ int main(int argc, char *argv[]){
 
     
     /* Create server message queue */
-    serverId = msgget(SERVER_KEY, IPC_CREAT | IPC_EXCL |
-                            0777);
+    serverId = msgget(SERVER_KEY, IPC_CREAT | IPC_EXCL | 0777);
     if (serverId == -1){
-        perror(RED"msgget"RESET);
-        exit(0);
+        serverId = msgget(SERVER_KEY, 0);
+        // perror(RED"msgget"RESET);
+        // exit(0);
     }
 
     /* Read requests, handle iteratively */
     printf(YELLOW"**********SERVER STARTED*********\n"RESET);
     for(;;){
-        msgLen = msgrcv(serverId, &req, sizeof(request_msg) - sizeof(long), 0, 0);
-        printf("Request Recieved\n");
-        if (msgLen == -1) {
-            perror(RED"msgrcv"RESET);        
-            break;                      
+        // CHECK IF TIMER OF ANY AUTO DELETE MSG EXPIRES
+        for(int i = 0; i < groups.size; ++i) {
+            for(int j = 0; j < groups.list[i].msg_cnt; ++j) {
+                if(!groups.list[i].msgs[j].t) continue;
+                unsigned long curr = time(NULL), elapsed;
+                elapsed = curr - groups.list[i].msgs[j].ct;
+                if(elapsed > groups.list[i].msgs[j].t) {
+                    // TIMER HAS EXPIRED, DELETE MSG
+                    // SWAP MSG TO BE DELETED WITH THE MSG STORED AT LAST INDEX AND REDUCE SIZE BY 1
+                    printf("Deleting message %d from group %d\n", j, i);
+                    gmsg tmsg = groups.list[i].msgs[j];
+                    groups.list[i].msgs[j] = groups.list[i].msgs[groups.list[i].msg_cnt - 1];
+                    groups.list[i].msgs[groups.list[i].msg_cnt - 1] = tmsg;
+                    (groups.list[i].msg_cnt)--;
+                }
+            }
+        }
+
+        msgLen = msgrcv(serverId, &req, sizeof(request_msg) - sizeof(long), 0, IPC_NOWAIT);
+        if (msgLen != -1) {
+            printf("Request Recieved\n");
+            serve_request(&req);
         }
                 
-        serve_request(&req);
     }
 
     /* If msgrcv() fails, remove server MQ and exit */
-    for(int i = 0; i < users.size; i++){
-        msgctl(users.list[i], IPC_RMID, NULL);
-    }
-    msgctl(serverId, IPC_RMID, NULL);
+    delete_msgqs();
     exit(EXIT_SUCCESS);
 }

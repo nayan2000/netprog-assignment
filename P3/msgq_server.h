@@ -8,6 +8,7 @@
 #define MAX_USERS 40
 #define MAX_GROUP_SZ 40
 #define MAX_GROUPS 40
+#define MAX_MSGS 100
 
 typedef struct request_msg {               
     long mtype;                        
@@ -16,12 +17,21 @@ typedef struct request_msg {
     char command;
     char args[MAX_SIZE];
     char data[MAX_SIZE];
+    int t;
 }request_msg;
+
+typedef struct gmsg {
+    char data[MAX_SIZE]; // MSG
+    int t; // AUTO DELETE TIMEOUT
+    unsigned long ct; // TIME OF CREATION OF MESSAGE
+}gmsg;
 
 typedef struct group{
     int size;
     int users[MAX_GROUP_SZ];
     char groupname[20];
+    gmsg msgs[MAX_MSGS];
+    int msg_cnt;
 }group;
 
 typedef struct group_list{
@@ -33,6 +43,7 @@ typedef struct user_list{
     int list[MAX_USERS];
     int size;
 }user_list;
+
 
 #define RESP_MSG_SIZE 8192
 
