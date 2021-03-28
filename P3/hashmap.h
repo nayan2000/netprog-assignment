@@ -15,14 +15,14 @@ typedef struct hashmap_t {
 	size_t capacity;
 } hashmap;
 
-size_t hash(char*, size_t);
+size_t hash(const char*, size_t);
 void create_hm(hashmap*, size_t);
 void free_bucket(bucket_node*);
 void free_hm(hashmap*);
-void insert(hashmap*, char*, int);
-bucket_node* get_bucket(hashmap*, char*);
-int get(hashmap*, char*);
-int has_key(hashmap*, char*);
+void insert(hashmap*, const char*, int);
+bucket_node* get_bucket(hashmap*, const char*);
+int get(hashmap*, const char*);
+int has_key(hashmap*, const char*);
 
 
 

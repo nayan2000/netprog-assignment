@@ -1,6 +1,6 @@
 #include "hashmap.h"
 
-size_t hash(char *str, size_t size){
+size_t hash(const char *str, size_t size){
 	size_t hcode = 0;
 	char ch = *str;
 
@@ -44,7 +44,7 @@ void free_hm(hashmap *map){
     free(map);
 }
 
-void insert(hashmap *map, char *key, int val){
+void insert(hashmap *map, const char *key, int val){
 	size_t loc = hash(key, map->capacity);
 
 	bucket_node *n = (bucket_node*) malloc(sizeof(bucket_node));
@@ -55,13 +55,13 @@ void insert(hashmap *map, char *key, int val){
 	map->buckets[loc] = n;
 }
 
-bucket_node* get_bucket(hashmap *map, char *key){
+bucket_node* get_bucket(hashmap *map, const char *key){
 	size_t loc = hash(key, map->capacity);
 
 	return map->buckets[loc];
 }
 
-int get(hashmap *map, char *key){
+int get(hashmap *map, const char *key){
 	size_t loc = hash(key, map->capacity);
 
 	bucket_node *ptr = map->buckets[loc];
@@ -76,6 +76,6 @@ int get(hashmap *map, char *key){
 	return -1;
 }
 
-int has_key(hashmap *map, char *key){
+int has_key(hashmap *map, const char *key){
 	return get(map, key) == -1 ? 0 : 1;
 }

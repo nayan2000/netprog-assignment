@@ -4,6 +4,7 @@ hashmap* map;
 group_list groups;
 user_list users;
 int serverId;
+
 void sighandler(int sig){
     msgctl(serverId, IPC_RMID, NULL);
 }
@@ -72,6 +73,21 @@ void serve_request(const request_msg *req){
         args = strdup(req->args);
     int i;
     switch(command){
+        case 'n':
+            if(!has_key(map, req->uname)){
+                resp.mtype = RESP_MT_CHECK_USER_NO_EXIST;
+                users.list[users.size] = req->client_qid;
+                (users.size)++;
+                setup_client_msgq(req);
+                msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
+            }
+            else{
+                resp.mtype = RESP_MT_CHECK_USER_EXIST;
+                int qid = get(map, req->uname);
+                sprintf(resp.data, "%d", qid);
+                msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
+            }
+            break;
         case 'c':
             resp.mtype = RESP_MT_ACK;
             /* data contains group name */
@@ -119,7 +135,7 @@ void serve_request(const request_msg *req){
                 }
                 else{
                     resp.mtype = RESP_MT_GROUP_NO_EXIST;
-                    sprintf(resp.data, "New Group Created %s - ID %d\n---\n", data, i);
+                    sprintf(resp.data, "New Group Created %s - ID %d\n---\n", data, group_to_id(data));
                     msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
                 }
             }
@@ -156,7 +172,7 @@ void serve_request(const request_msg *req){
             }
             else{
                 resp.mtype = RESP_MT_GROUP_NO_EXIST;
-                sprintf(resp.data, "\nGroup does not exist\nNew Group Created %s : %d\n---\n", args, i);
+                sprintf(resp.data, "\nGroup does not exist\nNew Group Created %s : %d\n---\n", args, group_to_id(args));
                 msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
             }
             break;
@@ -226,34 +242,14 @@ int main(int argc, char *argv[]){
             perror(RED"msgrcv"RESET);          
             break;                      
         }
-        if(req.command == 'n'){
-            response_msg resp;
-            bzero(&resp, sizeof(resp));
-            if(!has_key(map, req.uname)){
-                resp.mtype = RESP_MT_CHECK_USER_NO_EXIST;
-                users.list[users.size] = req.client_qid;
-                (users.size)++;
-                setup_client_msgq(&req);
-                msgsnd(req.client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
-            }
-            else{
-                resp.mtype = RESP_MT_CHECK_USER_EXIST;
-                int qid = get(map, req.uname);
-                sprintf(resp.data, "%d", qid);
-                msgsnd(req.client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
-            }
-            continue;
-        }
-        
-        
+                
         serve_request(&req);
     }
 
-    /* If msgrcv()  fails, remove server MQ and exit */
+    /* If msgrcv() fails, remove server MQ and exit */
     for(int i = 0; i < users.size; i++){
         msgctl(users.list[i], IPC_RMID, NULL);
     }
-    if (msgctl(serverId, IPC_RMID, NULL) == -1)
-        perror("msgctl:server");
+    msgctl(serverId, IPC_RMID, NULL);
     exit(EXIT_SUCCESS);
 }

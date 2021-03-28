@@ -1,7 +1,9 @@
 #include "msgq_client.h"
 int clientId;
+int stop = false;
 void do_nothing(int sig){
-
+    if(sig == SIGUSR2)
+        stop = true;
 }
 void exit_handler(){
     msgctl(clientId, IPC_RMID, NULL);
@@ -69,7 +71,7 @@ ssize_t read_line(int fd, void *buffer, size_t n){
 int main() {
     signal(SIGUSR1, do_nothing);
     setbuf(stdout, NULL);
-    atexit(exit_handler);
+    
     char uname[20] = {0};
 
     /* Enter Username to login */
@@ -133,24 +135,26 @@ int main() {
     /* Create Child to continuously read messages */
     pid_t child = fork();
     if(child == 0) {
-        
+        signal(SIGUSR2, do_nothing);
         response_msg res;
         bzero(&res, sizeof(res));
         while(1){
-            if(msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0) != -1){
+            if(!stop && msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0) != -1 && !stop){
                 printf(GREEN"---"RESET"\n");
                 printf(YELLOW"%s"RESET"\n", res.data);
             }
-            
-            while(msgrcv(clientId, &res, RESP_MSG_SIZE, 0, IPC_NOWAIT) != -1){
+            if(stop) break;
+            while(!stop && msgrcv(clientId, &res, RESP_MSG_SIZE, 0, IPC_NOWAIT) != -1){
                 printf(GREEN"---"RESET"\n");
                 printf(YELLOW"%s"RESET"\n", res.data);
             }
+            if(stop) break;
             kill(getppid(), SIGUSR1);            
             
         }
         _exit(0);
     }
+   
     // MAIN LOOP
     while(1){
         request_msg req;
@@ -217,9 +221,11 @@ int main() {
             strcpy(req.data, msg);
             req.command = 'g';
         }else if(ch == 6){
+            kill(child, SIGUSR2);
             break;
             
         }else if(ch == 7){
+            kill(child, SIGUSR2);
             break;
         }
         else{
@@ -235,11 +241,10 @@ int main() {
 
     }
     if(ch == 6){
-        kill(child, SIGQUIT);
-        _exit(0);
+        exit(0);
     }
-    if(ch == 7){
-        kill(child, SIGQUIT);
+    if(ch == 7){ 
+        atexit(exit_handler);
         exit(0);
     }
 
