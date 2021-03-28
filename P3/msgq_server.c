@@ -237,7 +237,20 @@ void serve_request(const request_msg *req){
         case 'r':
             remove_user_from_group(req->client_qid);
             break;
-        
+        case 's':
+            resp.mtype = RESP_MT_ACK;
+            i = group_to_id(data);
+            /* data contains group name */
+            if(is_group_member(data, req->client_qid)){
+                for(int j = 0; j < groups.list[i].msg_cnt; ++j) {
+                    response_msg rmsg;
+                    strcpy(rmsg.data, groups.list[i].msgs[j].data);
+                    msgsnd(req->client_qid, &rmsg, strlen(rmsg.data) + 1, IPC_NOWAIT);
+                }
+            } else{
+                sprintf(resp.data, "Group doesn't exists L %s - ID %d\n---|n", data, i);
+            }
+            break;
         default:
             break;    
     }

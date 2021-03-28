@@ -170,10 +170,11 @@ int main() {
         printf("%s\n", "1. Create new group\n");
         printf("%s\n", "2. List groups\n");
         printf("%s\n", "3. Join group\n");
-        printf("%s\n", "4. Send message to user\n");
-        printf("%s\n", "5. Send message to group\n");
-        printf("%s\n", "6. Logout\n");
-        printf("%s\n", "7. Deregister\n");
+        printf("%s\n", "4. List group messages\n");
+        printf("%s\n", "5. Send message to user\n");
+        printf("%s\n", "6. Send message to group\n");
+        printf("%s\n", "7. Logout\n");
+        printf("%s\n", "8. Deregister\n");
         printf(GREEN"\n>> "RESET);
         fflush(stdout);
         char opt[3] = {0};
@@ -183,6 +184,7 @@ int main() {
         fflush(stdin);
 
         if(ch == 1) {
+            // CREATE NEW GROUP
             char gname[MAX_SIZE] = {0};
             printf("Enter group name to create: ");
             fflush(stdout);
@@ -190,8 +192,10 @@ int main() {
             strcpy(req.data, gname);
             req.command = 'c';
         }else if(ch == 2){
+            // LIST GROUPS
             req.command = 'l';
         }else if(ch == 3){
+            // JOIN GROUP
             char gname[MAX_SIZE] = {0};
             printf("Enter group name to join: ");
             fflush(stdout);
@@ -199,6 +203,15 @@ int main() {
             strcpy(req.data, gname);
             req.command = 'j';
         }else if(ch == 4){
+            // LIST GROUP MSGS
+            char gname[MAX_SIZE] = {0};
+            printf("Enter group name to display messages from: ");
+            fflush(stdout);
+            read_line(STDIN_FILENO, gname, MAX_SIZE);
+            strcpy(req.data, gname);
+            req.command = 's';
+        } else if(ch == 5) {
+            // SEND MSG TO USR
             char uname[MAX_SIZE] = {0};
             printf("Enter user name to send message to: ");
             fflush(stdout);
@@ -209,7 +222,8 @@ int main() {
             strcpy(req.args, uname);
             strcpy(req.data, msg);
             req.command = 'u';
-        } else if(ch == 5) {
+        }else if(ch == 6){
+            // SEND MSG TO GROUP
             char gname[MAX_SIZE] = {0};
             printf("Enter group name to send message to: ");
             fflush(stdout);
@@ -222,11 +236,12 @@ int main() {
             strcpy(req.args, gname);
             strcpy(req.data, msg);
             req.command = 'g';
-        }else if(ch == 6){
+        }else if(ch == 7){
+            // LOGOUT
             kill(child, SIGUSR2);
             break;
-            
-        }else if(ch == 7){
+        } else if(ch == 8) {
+            // DEREGISTER
             request_msg exit_req;
             exit_req.client_qid = clientId;
             strcpy(exit_req.uname, uname);
@@ -235,8 +250,8 @@ int main() {
             msgsnd(serverId, &exit_req, sizeof(request_msg) - sizeof(long), IPC_NOWAIT);
             kill(child, SIGUSR2);
             break;
-        }
-        else{
+
+        } else{
             printf("Invalid option. Try again\n");
             fflush(stdout);
             continue;
