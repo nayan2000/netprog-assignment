@@ -70,43 +70,51 @@ int main() {
     signal(SIGUSR1, do_nothing);
     setbuf(stdout, NULL);
     atexit(exit_handler);
-    
-    int ch = -1;
-    char* msg = (char*) malloc(MAX_SIZE);
-    // SETUP MESSAGE QUEUE
     char uname[20] = {0};
+
+    /* Enter Username to login */
     printf("Enter your username: ");
     scanf("%s", uname);
     printf("%s - uname\n", uname);
-    // CREATE NEW MSGQ
+
+    /* Get Server Message Queue */
+    int serverId = msgget(SERVER_KEY, 0755);
+    if (serverId == -1){
+        perror(RED"server:msgget"RESET);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Setup Client Message Queue */
     clientId = msgget(IPC_PRIVATE, IPC_CREAT | IPC_EXCL | 0777);
+
+    /* Create Initial Message to inform server of the client queue */
     request_msg initreq;
     bzero(&initreq, sizeof(initreq));
-    initreq.mtype = 1;
 
+    initreq.mtype = 1;
     initreq.client_qid = clientId;
     strcpy(initreq.uname, uname);
     initreq.command = 'n';
-    int serverId = msgget(SERVER_KEY, 
-                            0755);
-
-    if (serverId == -1){
-        perror(RED"server:msgget"RESET);
-        exit(0);
-    }
-
+    
+    /* Send message to server containing Client Queue ID*/    
     if(msgsnd(serverId, &initreq, sizeof(request_msg)-sizeof(long), 0) == -1){
-        perror("msgsnd to server");
-        exit(0);
+        perror("initial msgsnd to server");
+        exit(EXIT_FAILURE);
     }
 
     response_msg res;
     bzero(&res, sizeof(res));
 
+    /* Wait for Server response */
+    /* 1. Client MSGQ exists? 
+            -Delete the newly formed queue
+            -Retrieve messages when client was offline */
+    /* 2. Client MSGQ does not exist?
+            - Welcome Client to the sysytem */
     msgrcv(clientId, &res, RESP_MSG_SIZE, -2, 0);
 
-    /* User logged out and then logs in again */ 
-    if(res.mtype == RESP_MT_CHECK_USER_EXIST){ 
+    
+    if(res.mtype == RESP_MT_CHECK_USER_EXIST){ /* User logged out and then logs in again */ 
         msgctl(clientId, IPC_RMID, NULL);
         clientId = atoi(res.data);
 
@@ -117,20 +125,29 @@ int main() {
         }
     }
     if(res.mtype == RESP_MT_CHECK_USER_NO_EXIST){ /* New User */
-        
+        printf(GREEN"Welcome to the message system !\n"RESET);
     }
-    // CHILD - HANDLE MESSAGES
+
+    int ch = -1;
+    char* msg = (char*) malloc(MAX_SIZE);
+    /* Create Child to continuously read messages */
     pid_t child = fork();
     if(child == 0) {
+        
         response_msg res;
         bzero(&res, sizeof(res));
         while(1){
-            if(msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0) == -1)
-                break;
+            if(msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0) != -1){
+                printf(GREEN"---"RESET"\n");
+                printf(YELLOW"%s"RESET"\n", res.data);
+            }
             
-            printf(GREEN"---"RESET"\n");
-            printf(YELLOW"%s"RESET"\n", res.data);
-            kill(getppid(), SIGUSR1);
+            while(msgrcv(clientId, &res, RESP_MSG_SIZE, 0, IPC_NOWAIT) != -1){
+                printf(GREEN"---"RESET"\n");
+                printf(YELLOW"%s"RESET"\n", res.data);
+            }
+            kill(getppid(), SIGUSR1);            
+            
         }
         _exit(0);
     }
@@ -208,14 +225,12 @@ int main() {
         else{
             printf("Invalid option. Try again\n");
             fflush(stdout);
+            continue;
         }
 
         msgsnd(serverId, &req, sizeof(request_msg) - sizeof(long), IPC_NOWAIT);
         pause();
-        // WAIT FOR REPLY FROM SERVER
-        // msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0);
-
-        // printf("%s", res.data);
+        
         fflush(stdout);
 
     }
