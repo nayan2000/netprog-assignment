@@ -62,6 +62,9 @@ typedef struct response_msg{                 /* Responses (server to client) */
 #define RESP_MT_ACK 6                       /* Message contains successful execution acknowlegement */
 #define RESP_MT_DATA 7                      /* Message contains data */
 #define RESP_MT_USER_NO_EXIST 8
+#define RESP_MT_JOIN 9
+#define RESP_MT_GMSG 10
+#define RESP_MT_CREAT 11
 
 int group_to_id(char*);
 char* id_to_group(int);

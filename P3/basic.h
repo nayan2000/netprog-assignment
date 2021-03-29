@@ -24,7 +24,7 @@
 #include <stdlib.h>      /* Prototypes of commonly used library functions */
 #include <math.h>		 /* Math manipulations */
 #include <time.h>
-
+#include <sys/shm.h>
 #include <ctype.h>
 #include <sys/msg.h>
 #include <assert.h>

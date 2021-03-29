@@ -5,7 +5,13 @@
 
 #define SERVER_KEY 0x1aaaaaa1          
 #define MAX_SIZE 40
-#define RESP_MSG_SIZE 8192
+#define RESP_MSG_SIZE 2048
+#define MAX_GROUPS 40
+#define MAX_MSGS 100
+#define MAX_USERS 40
+#define MAX_MSG_SIZE 100
+#define MAX_GROUP_SZ 40
+#define OBJ_PERMS (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP) /* Permissions for our IPC objects */
 
 typedef struct request_msg {               
     long mtype;                        
@@ -22,6 +28,15 @@ typedef struct response_msg{                 /* Responses (server to client) */
     char data[RESP_MSG_SIZE];                /* File content / response message */
 }response_msg;
 
+typedef struct group{
+    char groupname[20];
+    char msgs[MAX_MSGS][MAX_MSG_SIZE];
+    int msg_cnt;
+}group;
+typedef struct G{
+    group g_list[MAX_GROUPS];
+    int cap;
+}G;
 /* Types for response messages sent from server to client */
 #define RESP_MT_CHECK_USER_EXIST 1
 #define RESP_MT_CHECK_USER_NO_EXIST 2             /* User doesn't exist. Can't send private message */
@@ -32,6 +47,12 @@ typedef struct response_msg{                 /* Responses (server to client) */
 #define RESP_MT_ACK 6                       /* Message contains successful execution acknowlegement */
 #define RESP_MT_DATA 7                      /* Message contains data */
 #define RESP_MT_USER_EXIST 8
+#define RESP_MT_JOIN 9
+#define RESP_MT_GMSG 10
+#define RESP_MT_CREAT 11
+
+
+#define SHM_KEY 0x1234 
 
 int getReqSize(request_msg* req);
 int main();

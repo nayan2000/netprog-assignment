@@ -1,8 +1,64 @@
 #include "msgq_client.h"
 int stop = false;
+bool stop2 = true;
+ssize_t read_line(int fd, void *buffer, size_t n);
+void join_recv_add_messages(response_msg *res, G* shmp){
+    if(res->mtype == RESP_MT_CREAT){
+        group g;
+        g.msg_cnt = 0;
+        int index = strlen("Group Created ");
+        int k = 0;
+        for(int j = index; res->data[j] != '\n'; j++){
+            g.groupname[k++] = res->data[j];
+        }
+        g.groupname[k] = 0;
+        strcpy(g.msgs[g.msg_cnt], res->data);
+        (g.msg_cnt)++;
+        shmp->g_list[shmp->cap] = g;
+        (shmp->cap)++;
+    }
+    else if(res->mtype == RESP_MT_JOIN){
+        group g;
+        g.msg_cnt = 0;
+        int index = strlen("Added to the group ");
+        int k = 0;
+        for(int j = index; res->data[j] != '\n'; j++){
+            g.groupname[k++] = res->data[j];
+        }
+        g.groupname[k] = 0;
+       
+        strcpy(g.msgs[g.msg_cnt], res->data);
+        (g.msg_cnt)++;
+        shmp->g_list[shmp->cap] = g;
+        (shmp->cap)++;
+    }
+    else if(res->mtype == RESP_MT_GMSG){
+        int skip = strlen("\nGroup: \n---\n");
+        int index = strlen("\nGroup: ");
+        int k = 0;
+        char g_name[20] = {0};
+        for(int j = index; res->data[j] != '\n'; j++){
+            g_name[k++] = res->data[j];
+        }
+        g_name[k] = 0;
+        skip += strlen(g_name);
+        for(int i = 0; i < MAX_GROUPS; i++){
+            if(strcmp(g_name, shmp->g_list[i].groupname) == 0){
+                char* temp = res->data + skip;
+                strcpy(shmp->g_list[i].msgs[shmp->g_list[i].msg_cnt], temp);
+                (shmp->g_list[i].msg_cnt)++;
+
+                break;
+            }
+        }
+        
+    }
+}
 void do_nothing(int sig){
-    if(sig == SIGUSR2 || sig == SIGINT || sig == SIGTSTP || sig == SIGQUIT || sig == SIGTERM)
-        stop = true;
+    return;
+}
+void make_stop(int sig){
+    stop = true;
     return;
 }
 
@@ -60,17 +116,27 @@ ssize_t read_line(int fd, void *buffer, size_t n){
 
 int main() {
     signal(SIGUSR1, do_nothing);
-    signal(SIGINT, do_nothing);
-    signal(SIGQUIT, do_nothing);
-    signal(SIGTERM, do_nothing);
-    signal(SIGTSTP, do_nothing);
+    signal(SIGINT, make_stop);
+    signal(SIGQUIT, make_stop);
+    signal(SIGTERM, make_stop);
+    signal(SIGTSTP, make_stop);
+
+    int shmid = shmget(IPC_PRIVATE, sizeof(G), IPC_CREAT | OBJ_PERMS); 
+    if (shmid == -1) perror("shmget"); 
+    
+    G* shmp = shmat(shmid, NULL, 0);
+    if (shmp == (void *) -1){
+        perror("shmp");
+    }
+    shmp->cap = 0;
+    bzero(shmp, sizeof(G));
+    
     char uname[20] = {0};
 
     /* Enter Username to login */
     printf("Enter your username: ");
     scanf("%s", uname);
-    printf(GREEN"Your username is %s.\n"RESET, uname);
-    printf(YELLOW"Use the same for future login!\n"RESET);
+    
 
     /* Get Server Message Queue */
     int serverId = msgget(SERVER_KEY, 0755);
@@ -115,37 +181,54 @@ int main() {
 
         /* Retrieve all pending messages */
         while(msgrcv(clientId, &res, RESP_MSG_SIZE, 0, IPC_NOWAIT) != -1){
-            
+            join_recv_add_messages(&res, shmp);
             printf(YELLOW"%s\n"RESET, res.data);
         }
     }
     printf("Client ID: %d\n", clientId);
+    printf("SHM ID: %d\n", shmid);
+
     if(res.mtype == RESP_MT_CHECK_USER_NO_EXIST){ /* New User */
         printf(GREEN"Welcome to the message system !\n"RESET);
     }
 
-    
+    printf(YELLOW"\nYour username is %s.\n"RESET, uname);
+    printf(YELLOW"Use the same for future login!\n"RESET);
+
     int ch = -1;
     char* msg = (char*) malloc(MAX_SIZE);
     /* Create Child to continuously read messages */
     pid_t child = fork();
     if(child == 0) {
-        signal(SIGUSR2, do_nothing);
+        signal(SIGUSR1, make_stop);
+
+        signal(SIGINT, make_stop);
+        signal(SIGQUIT, make_stop);
+        signal(SIGTERM, make_stop);
+        signal(SIGTSTP, make_stop);
+
+        shmp = shmat(shmid, NULL, 0); 
+        if (shmp == (void *) -1) perror("shmat");
         response_msg res;
         bzero(&res, sizeof(res));
         while(1){
             if(!stop && msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0) != -1){
+                join_recv_add_messages(&res, shmp);
                 printf(GREEN"---"RESET"\n");
                 printf(YELLOW"%s"RESET"\n", res.data);
             }
             if(stop) break;
             while(!stop && msgrcv(clientId, &res, RESP_MSG_SIZE, 0, IPC_NOWAIT) != -1){
+                join_recv_add_messages(&res, shmp);
                 printf(GREEN"---"RESET"\n");
                 printf(YELLOW"%s"RESET"\n", res.data);
             }
             kill(getppid(), SIGUSR1);            
             
         }
+        /* printf("Detaching Child\n"); */
+        if (shmdt(shmp) == -1) perror("shmdt"); 
+        if (shmctl(shmid, IPC_RMID, 0) == -1) perror("shmctl");
         _exit(0);
     }
    
@@ -203,8 +286,15 @@ int main() {
             printf("Enter group name to display messages from: ");
             fflush(stdout);
             read_line(STDIN_FILENO, gname, MAX_SIZE);
-            strcpy(req.data, gname);
-            req.command = 's';
+            for(int i = 0; i < MAX_GROUPS; i++){
+                if(strcmp(gname, shmp->g_list[i].groupname) == 0){
+                    for(int k = 0; k < shmp->g_list[i].msg_cnt; k++)
+                        printf(YELLOW"%s"RESET, shmp->g_list[i].msgs[k]);
+                    break;
+                }
+            }
+            continue;
+            
         } else if(ch == 5) {
             // SEND MSG TO USR
             char uname[MAX_SIZE] = {0};
@@ -233,11 +323,11 @@ int main() {
             req.command = 'g';
         }else if(ch == 7){
             // LOGOUT
-            kill(child, SIGUSR2);
+            kill(child, SIGUSR1);
             break;
         } else if(ch == 8) {
             // DEREGISTER
-            kill(child, SIGUSR2);
+            /* kill(child, SIGUSR1); */
             printf("Removing MQ\n");
             if(msgctl(clientId, IPC_RMID, NULL) == -1){
                 perror("Client MQ removal");
@@ -267,6 +357,8 @@ int main() {
         fflush(stdout);
 
     }
-    
+    /* printf("Detaching..\n"); */
+    if (shmdt(shmp) == -1) perror("shmdt"); 
+    if (shmctl(shmid, IPC_RMID, 0) == -1) perror("shmctl");
     return 0;
 }
