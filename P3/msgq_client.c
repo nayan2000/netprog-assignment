@@ -5,9 +5,7 @@ void do_nothing(int sig){
     if(sig == SIGUSR2)
         stop = true;
 }
-void exit_handler(){
-    msgctl(clientId, IPC_RMID, NULL);
-}
+
 /* Read characters from 'fd' until a newline is encountered. If a newline
   character is not encountered in the first (n - 1) bytes, then the excess
   characters are discarded. The returned string placed in 'buf' is
@@ -172,7 +170,7 @@ int main() {
         char opt[3] = {0};
         read_line(STDIN_FILENO, opt, 3);
         if(strlen(opt) == 0) continue;
-        int ch = atoi(opt);
+        ch = atoi(opt);
         fflush(stdin);
 
         if(ch == 1) {
@@ -234,13 +232,16 @@ int main() {
             break;
         } else if(ch == 8) {
             // DEREGISTER
+            kill(child, SIGUSR2);
+            printf("Removing MQ\n");
+            msgctl(clientId, IPC_RMID, NULL);
             request_msg exit_req;
             exit_req.client_qid = clientId;
             strcpy(exit_req.uname, uname);
             exit_req.mtype = 1;
             exit_req.command = 'r';
             msgsnd(serverId, &exit_req, sizeof(request_msg) - sizeof(long), IPC_NOWAIT);
-            kill(child, SIGUSR2);
+            
             break;
 
         } else{
@@ -255,13 +256,6 @@ int main() {
         fflush(stdout);
 
     }
-    if(ch == 6){
-        exit(0);
-    }
-    if(ch == 7){ 
-        atexit(exit_handler);
-        exit(0);
-    }
-
+    
     return 0;
 }

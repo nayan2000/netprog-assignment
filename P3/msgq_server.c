@@ -6,7 +6,10 @@ user_list users;
 int serverId;
 
 void sighandler(int sig){
-    msgctl(serverId, IPC_RMID, NULL);
+    printf("inside Signal Handler %d\n", serverId);
+    if(msgctl(serverId, IPC_RMID, NULL) == -1){
+        perror("Signal handle");
+    }
     exit(1);
 }
 void exit_handler(){
@@ -150,7 +153,10 @@ void serve_request(const request_msg *req){
                     int j = groups.list[i].size;
                     groups.list[i].users[j] = req->client_qid;
                     (groups.list[i].size)++;
-                    sprintf(resp.data, "Added to the group %s - ID %d\n---\n", data, i);
+                    sprintf(resp.data, "Added to the group %s - ID %d\n---\nMessages:\n", data, i);
+                    for(int j = 0; j < groups.list[i].msg_cnt; ++j) {
+                        strcat(resp.data, groups.list[i].msgs[j].data);
+                    }
                     msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
                 }
                 else{
@@ -172,6 +178,9 @@ void serve_request(const request_msg *req){
                    // ADD RECEIVED MESSAGE TO MSG ARRAY OF GROUP
                     gmsg g;
                     strcpy(g.data, req->data);
+                    strcat(g.data, " - ");
+                    strcat(g.data, req->uname);
+                    strcat(g.data, "\n");
                     g.t = req->t;
                     g.ct = time(NULL); // GIVES TIMESTAMP IN SEC
                     groups.list[i].msgs[groups.list[i].msg_cnt] = g;
@@ -238,17 +247,25 @@ void serve_request(const request_msg *req){
             remove_user_from_group(req->client_qid);
             break;
         case 's':
-            resp.mtype = RESP_MT_ACK;
-            i = group_to_id(data);
+            resp.mtype = RESP_MT_DATA;
             /* data contains group name */
-            if(is_group_member(data, req->client_qid)){
-                for(int j = 0; j < groups.list[i].msg_cnt; ++j) {
-                    response_msg rmsg;
-                    strcpy(rmsg.data, groups.list[i].msgs[j].data);
-                    msgsnd(req->client_qid, &rmsg, strlen(rmsg.data) + 1, IPC_NOWAIT);
+            i = group_to_id(data);
+            if(i < 0){
+                resp.mtype = RESP_MT_GROUP_NO_EXIST;
+                sprintf(resp.data, "\nGroup does not exist\n---\n", args);
+                msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
+            }
+            else{
+                if(is_group_member(data, req->client_qid)){
+                    for(int j = 0; j < groups.list[i].msg_cnt; ++j) {
+                        strcat(resp.data, groups.list[i].msgs[j].data);
+                    }
+                    msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
+                }else{
+                    resp.mtype = RESP_MT_NOT_MEMBER;
+                    sprintf(resp.data, "\nCan't retrieve messages : Not a member of the group %s : %d\n---\n", args, i);
+                    msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
                 }
-            } else{
-                sprintf(resp.data, "Group doesn't exists L %s - ID %d\n---|n", data, i);
             }
             break;
         default:
@@ -280,10 +297,9 @@ int main(int argc, char *argv[]){
     
     /* Create server message queue */
     serverId = msgget(SERVER_KEY, IPC_CREAT | IPC_EXCL | 0777);
+    printf("Server ID: %d\n", serverId);
     if (serverId == -1){
-        serverId = msgget(SERVER_KEY, 0);
-        // perror(RED"msgget"RESET);
-        // exit(0);
+        serverId = msgget(SERVER_KEY, 0777);
     }
 
     /* Read requests, handle iteratively */
@@ -308,6 +324,7 @@ int main(int argc, char *argv[]){
         }
 
         msgLen = msgrcv(serverId, &req, sizeof(request_msg) - sizeof(long), 0, IPC_NOWAIT);
+        
         if (msgLen != -1) {
             printf("Request Recieved\n");
             serve_request(&req);
@@ -316,6 +333,6 @@ int main(int argc, char *argv[]){
     }
 
     /* If msgrcv() fails, remove server MQ and exit */
-    delete_msgqs();
+    // delete_msgqs();
     exit(EXIT_SUCCESS);
 }
