@@ -1,9 +1,9 @@
 #include "msgq_client.h"
-int clientId;
 int stop = false;
 void do_nothing(int sig){
-    if(sig == SIGUSR2)
+    if(sig == SIGUSR2 || sig == SIGINT || sig == SIGTSTP || sig == SIGQUIT || sig == SIGTERM)
         stop = true;
+    return;
 }
 
 /* Read characters from 'fd' until a newline is encountered. If a newline
@@ -60,25 +60,28 @@ ssize_t read_line(int fd, void *buffer, size_t n){
 
 int main() {
     signal(SIGUSR1, do_nothing);
-    setbuf(stdout, NULL);
-    
+    signal(SIGINT, do_nothing);
+    signal(SIGQUIT, do_nothing);
+    signal(SIGTERM, do_nothing);
+    signal(SIGTSTP, do_nothing);
     char uname[20] = {0};
 
     /* Enter Username to login */
     printf("Enter your username: ");
     scanf("%s", uname);
-    printf("%s - uname\n", uname);
+    printf(GREEN"Your username is %s.\n"RESET, uname);
+    printf(YELLOW"Use the same for future login!\n"RESET);
 
     /* Get Server Message Queue */
     int serverId = msgget(SERVER_KEY, 0755);
+    printf("Server ID: %d\n", serverId);
     if (serverId == -1){
         perror(RED"server:msgget"RESET);
         exit(EXIT_FAILURE);
     }
 
     /* Setup Client Message Queue */
-    clientId = msgget(IPC_PRIVATE, IPC_CREAT | IPC_EXCL | 0777);
-
+    int clientId = msgget(IPC_PRIVATE, IPC_CREAT | IPC_EXCL | 0777);
     /* Create Initial Message to inform server of the client queue */
     request_msg initreq;
     bzero(&initreq, sizeof(initreq));
@@ -116,10 +119,12 @@ int main() {
             printf(YELLOW"%s\n"RESET, res.data);
         }
     }
+    printf("Client ID: %d\n", clientId);
     if(res.mtype == RESP_MT_CHECK_USER_NO_EXIST){ /* New User */
         printf(GREEN"Welcome to the message system !\n"RESET);
     }
 
+    
     int ch = -1;
     char* msg = (char*) malloc(MAX_SIZE);
     /* Create Child to continuously read messages */
@@ -129,7 +134,7 @@ int main() {
         response_msg res;
         bzero(&res, sizeof(res));
         while(1){
-            if(!stop && msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0) != -1 && !stop){
+            if(!stop && msgrcv(clientId, &res, RESP_MSG_SIZE, 0, 0) != -1){
                 printf(GREEN"---"RESET"\n");
                 printf(YELLOW"%s"RESET"\n", res.data);
             }
@@ -169,6 +174,7 @@ int main() {
         fflush(stdout);
         char opt[3] = {0};
         read_line(STDIN_FILENO, opt, 3);
+        if(stop) break;
         if(strlen(opt) == 0) continue;
         ch = atoi(opt);
         fflush(stdin);
@@ -234,7 +240,9 @@ int main() {
             // DEREGISTER
             kill(child, SIGUSR2);
             printf("Removing MQ\n");
-            msgctl(clientId, IPC_RMID, NULL);
+            if(msgctl(clientId, IPC_RMID, NULL) == -1){
+                perror("Client MQ removal");
+            }
             request_msg exit_req;
             exit_req.client_qid = clientId;
             strcpy(exit_req.uname, uname);

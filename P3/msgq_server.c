@@ -4,19 +4,11 @@ hashmap* map;
 group_list groups;
 user_list users;
 int serverId;
+bool stop = false;
 
 void sighandler(int sig){
-    printf("inside Signal Handler %d\n", serverId);
-    if(msgctl(serverId, IPC_RMID, NULL) == -1){
-        perror("Signal handle");
-    }
-    exit(1);
+    stop = true;
 }
-void exit_handler(){
-    msgctl(serverId, IPC_RMID, NULL);
-    exit(1);
-}
-
 
 int group_to_id(char* groupname){
     for(int i = 0; i < groups.size; i++){
@@ -252,7 +244,7 @@ void serve_request(const request_msg *req){
             i = group_to_id(data);
             if(i < 0){
                 resp.mtype = RESP_MT_GROUP_NO_EXIST;
-                sprintf(resp.data, "\nGroup does not exist\n---\n", args);
+                sprintf(resp.data, "\nGroup %s does not exist\n---\n", args);
                 msgsnd(req->client_qid, &resp, strlen(resp.data) + 1, IPC_NOWAIT);
             }
             else{
@@ -273,19 +265,18 @@ void serve_request(const request_msg *req){
     }
 }
 
-void delete_msgqs() {
+void delete_msgqs(int serverId) {
     for(int i = 0; i < users.size; i++){
         msgctl(users.list[i], IPC_RMID, NULL);
     }
-    msgctl(serverId, IPC_RMID, NULL);
+    printf("Server ID: %d\n", serverId);
+    if(msgctl(serverId, IPC_RMID, NULL) == -1){
+        perror("Server Delete");
+    }
 }
 
 int main(int argc, char *argv[]){
-    atexit(exit_handler);
-    signal(SIGINT, sighandler);
-    signal(SIGQUIT, sighandler);
-    signal(SIGTERM, sighandler);
-    signal(SIGTSTP, sighandler);
+    
     struct request_msg req;
     ssize_t msgLen;int serverId;
     
@@ -299,12 +290,18 @@ int main(int argc, char *argv[]){
     serverId = msgget(SERVER_KEY, IPC_CREAT | IPC_EXCL | 0777);
     printf("Server ID: %d\n", serverId);
     if (serverId == -1){
-        serverId = msgget(SERVER_KEY, 0777);
+        perror("Server MQ exists");
+        exit(0);
     }
-
+    signal(SIGINT, sighandler);
+    signal(SIGQUIT, sighandler);
+    signal(SIGTERM, sighandler);
+    signal(SIGTSTP, sighandler);
+    
     /* Read requests, handle iteratively */
     printf(YELLOW"**********SERVER STARTED*********\n"RESET);
     for(;;){
+        if(stop) break;
         // CHECK IF TIMER OF ANY AUTO DELETE MSG EXPIRES
         for(int i = 0; i < groups.size; ++i) {
             for(int j = 0; j < groups.list[i].msg_cnt; ++j) {
@@ -324,8 +321,8 @@ int main(int argc, char *argv[]){
         }
 
         msgLen = msgrcv(serverId, &req, sizeof(request_msg) - sizeof(long), 0, IPC_NOWAIT);
-        
-        if (msgLen != -1) {
+        if(stop) break;
+        if (!stop && msgLen != -1) {
             printf("Request Recieved\n");
             serve_request(&req);
         }
@@ -333,6 +330,6 @@ int main(int argc, char *argv[]){
     }
 
     /* If msgrcv() fails, remove server MQ and exit */
-    // delete_msgqs();
+    delete_msgqs(serverId);
     exit(EXIT_SUCCESS);
 }
