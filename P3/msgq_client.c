@@ -143,7 +143,6 @@ int main() {
                 printf(GREEN"---"RESET"\n");
                 printf(YELLOW"%s"RESET"\n", res.data);
             }
-            if(stop) break;
             kill(getppid(), SIGUSR1);            
             
         }
@@ -258,7 +257,11 @@ int main() {
             continue;
         }
 
-        msgsnd(serverId, &req, sizeof(request_msg) - sizeof(long), IPC_NOWAIT);
+        if(msgsnd(serverId, &req, sizeof(request_msg) - sizeof(long), IPC_NOWAIT) == -1){
+            printf(RED"Server Down: Can't send messages\n"RESET);
+            break;
+        }
+            
         pause();
         
         fflush(stdout);

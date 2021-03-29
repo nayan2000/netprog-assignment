@@ -297,7 +297,7 @@ int main(int argc, char *argv[]){
     signal(SIGQUIT, sighandler);
     signal(SIGTERM, sighandler);
     signal(SIGTSTP, sighandler);
-    
+
     /* Read requests, handle iteratively */
     printf(YELLOW"**********SERVER STARTED*********\n"RESET);
     for(;;){
@@ -329,7 +329,7 @@ int main(int argc, char *argv[]){
                 
     }
 
-    /* If msgrcv() fails, remove server MQ and exit */
+    /* If msgrcv() fails, remove server MQ and Client MQs and exit */
     delete_msgqs(serverId);
     exit(EXIT_SUCCESS);
 }
