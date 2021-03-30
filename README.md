@@ -1,4 +1,5 @@
-# Netprog Assignment
+# Network Programming Assignment
+Done in partial fulfillment of the course Network Programming(netprog), IS F462, BITS Pilani, Pilani.
 
 ## [Local Shell](https://github.com/nayan2000/netprog-assignment/tree/main/P1) : UNIX Programming : Fork, Processes
 
