@@ -327,7 +327,7 @@ int main() {
             break;
         } else if(ch == 8) {
             // DEREGISTER
-            /* kill(child, SIGUSR1); */
+            kill(child, SIGUSR1);
             printf("Removing MQ\n");
             if(msgctl(clientId, IPC_RMID, NULL) == -1){
                 perror("Client MQ removal");
