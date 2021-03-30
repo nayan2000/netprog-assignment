@@ -54,7 +54,15 @@ void handle_request(int cfd, char * address_string){
 						if(client_ips[i]){							
 							char *ip = client_ips[i];
 							printf("Node IP : %s\n", ip);
-							int connfd = inet_connect(ip, CLIENT_PORT, SOCK_STREAM);
+							/* For testing purposes */
+							int connfd;
+							if(i == 1)
+								connfd = inet_connect(ip, CLIENT_PORT1, SOCK_STREAM);
+							else
+								connfd = inet_connect(ip, CLIENT_PORT2, SOCK_STREAM);
+							/* For non-testing purposes */
+							/* int connfd;
+							connfd = inet_connect(ip, CLIENT_PORT, SOCK_STREAM); */
 							if(connfd < 0){
 								perror(RED"Connect error while executing child command"RESET);
 								_exit(0);
@@ -96,13 +104,20 @@ void handle_request(int cfd, char * address_string){
 					printf("Value : %d\n", i);
 					char *ip = client_ips[i];
 					printf("Node IP : %s\n", ip);
-					int connfd = inet_connect(ip, CLIENT_PORT, SOCK_STREAM);
+					/* For testing purposes */
+					int connfd;
+					if(i == 1)
+						connfd = inet_connect(ip, CLIENT_PORT1, SOCK_STREAM);
+					else
+						connfd = inet_connect(ip, CLIENT_PORT2, SOCK_STREAM);
+					/* For non-testing purposes */
+					/* int connfd;
+					connfd = inet_connect(ip, CLIENT_PORT, SOCK_STREAM); */
 					if(connfd < 0){
 						perror(RED"Connect error while executing child command"RESET);
 						_exit(0);
 					}
 					
-
 					char send_buf[MAX_BUF_SZ] = {0};
 					strcpy(send_buf, command);
 					if(strlen(input_buf))

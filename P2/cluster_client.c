@@ -45,7 +45,6 @@ void handle_request(int cfd){
 
             /* Use pipes for giving input from server and 
             recieving output to be forwarded to the server */
-
             int rpipes[2], wpipes[2];
             pipe(rpipes);
             pipe(wpipes);
@@ -104,16 +103,20 @@ void handle_request(int cfd){
     }
 }
 
-int main(){
-    clear_screen();
+int main(){   
     /* Listen for execution requests from server in parent */
-    int lfd = inet_listen(CLIENT_PORT, BACKLOG, NULL);
+    /* For testing purposes */
+    int lfd = inet_listen(CLIENT_PORT1, BACKLOG, NULL);
+
+    /* For non-testing purposes */
+    /* int lfd = inet_listen(CLIENT_PORT, BACKLOG, NULL); */
     if(lfd == -1){
         perror(RED"CLIENT SIDE: LISTEN ERROR"RESET);
         exit(EXIT_FAILURE);
     }
     printf(YELLOW"CLIENT SIDE: SERVER STARTED\n"RESET);
-            
+
+    
     pid_t ch = fork();
     switch(ch){
         case -1:;
@@ -121,13 +124,14 @@ int main(){
             exit(EXIT_FAILURE);
             break;
         case 0:; /* Child runs shell for input */
-
-            /* Connect to server for sending commands */
+             /* Connect to server for sending commands */
+            printf("Connecting to main server:\n");
             int connfd = inet_connect(SERV_IP, SERV_PORT, SOCK_STREAM);
             if(connfd == -1){
                 perror(RED"MAIN SERVER DOWN"RESET);
                 exit(0);
             }
+            clear_screen();
             printf("**************** INPUT WINDOW *******************\n");
             /* Loop forever */
             for(;;){
@@ -181,32 +185,27 @@ int main(){
                 printf("--------------------------------\n");
                 fflush(stdin);
             }
-            /* If error or forcefully closed */
+           /* If error or forcefully closed */
             close(connfd);
             kill(getppid(), SIGINT);
             _exit(EXIT_FAILURE);
             break;
-
         default:; /* Parent accepts server requests iteratively */
-            int cfd;
-
             /* Use iterative handling because of cd command */
             /* Concurrent handling can be used as well if there were no cd 
             command. Using cd changes the current directory for the program in which
             it is run. Thus, it will change the directory of child and not 
             the parent. We can seperately handle cd in the parent but we don't
             for a small scale project. */
-
+            int cfd;
             for(;;){  /* Handle each request one after another */
                 if((cfd = accept(lfd, NULL, NULL)) < 0) {
-                    if (errno == EINTR) continue; /* back to for() */ 
+                    if (errno == EINTR) break; /* back to for() */ 
                     else{
                         perror(RED"CLIENT SIDE: ACCEPT ERROR"RESET);
                         exit(0);
                     }
                 }
-               
-               
                 handle_request(cfd);			
                 close(cfd);
             }

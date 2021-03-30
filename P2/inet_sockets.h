@@ -21,7 +21,14 @@
 
 
 #define SERV_PORT "50000"
-#define CLIENT_PORT "40000"
+
+/* For non-testing purposes */
+#define CLIENT_PORT1 "40000"
+#define CLIENT_PORT2 "40001"
+
+/* For non-testing purposes */
+/* #define CLIENT_PORT "40005" */
+
 #define SERV_IP "127.0.0.1"
 #define BACKLOG 5
 
