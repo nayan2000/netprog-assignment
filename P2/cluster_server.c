@@ -19,6 +19,7 @@ bool handle_nodes_cmd(char* cmd, char* buf){
 void handle_request(int cfd, char * address_string){
 	ssize_t nread = 0;
 	while(1){
+		jmp:;
 		char cmd[MAX_BUF_SZ] = {0};
 		read_buf reader;
 		bzero(&reader, sizeof(reader));
@@ -65,7 +66,10 @@ void handle_request(int cfd, char * address_string){
 							connfd = inet_connect(ip, CLIENT_PORT, SOCK_STREAM); */
 							if(connfd < 0){
 								perror(RED"Connect error while executing child command"RESET);
-								_exit(0);
+								char temp[40] = {0};
+								sprintf(temp, "Connect error for node %d, IP %s\n$", i, ip);
+								write(cfd, temp, strlen(temp) + 1);
+								goto jmp;
 							}
 
 							char send_buf[MAX_BUF_SZ] = {0};
@@ -98,7 +102,7 @@ void handle_request(int cfd, char * address_string){
 					puts(input_buf);
 				}
 				else{
-					
+
 					printf("Node ID : %s, ", node_id);
 					int i = atoi(node_id + 1);
 					printf("Value : %d\n", i);
@@ -115,7 +119,10 @@ void handle_request(int cfd, char * address_string){
 					connfd = inet_connect(ip, CLIENT_PORT, SOCK_STREAM); */
 					if(connfd < 0){
 						perror(RED"Connect error while executing child command"RESET);
-						_exit(0);
+						char temp[40] = {0};
+						sprintf(temp, "Connect error for node: %d, IP: %s\n$", i, ip);
+						write(cfd, temp, strlen(temp) + 1);
+						goto jmp;
 					}
 					
 					char send_buf[MAX_BUF_SZ] = {0};

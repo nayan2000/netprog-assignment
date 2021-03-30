@@ -137,7 +137,8 @@ int main(){
             int connfd = inet_connect(SERV_IP, SERV_PORT, SOCK_STREAM);
             if(connfd == -1){
                 perror(RED"MAIN SERVER DOWN"RESET);
-                exit(0);
+                kill(getppid(), SIGINT);
+                _exit(0);
             }
             clear_screen();
             printf("**************** INPUT WINDOW *******************\n");
