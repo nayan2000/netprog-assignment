@@ -8,7 +8,7 @@
 
 void print_sc_table();
 bool manage_sc_command(char** broken_cmd, token_list* list);
-bool remove_from_sc_table(int i, char* cmd);
+bool remove_from_sc_table(int i);
 char* lookup_cmd(int i);
 bool add_to_sc_table(int i, char* cmd);
 

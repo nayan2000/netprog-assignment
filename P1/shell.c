@@ -45,7 +45,8 @@ void shortcut_handler(int sig){
             break;
         }
     }
-    
+    bool ret = run_job(command);
+    if(ret) return;
     int pid = fork();
     if(pid > 0){
         if(isfg){
@@ -92,15 +93,22 @@ void initial_setup(){
 */
 bool process_command(bool *isfg, char * command){
     bool ignore;
-
+    
+    
     /* Get command from the terminal */
+    fflush(stdin);
     memset(command, '\0',sizeof(command));
     int cmd_sz = getline(&command, &max_cmd_sz, stdin);
     if(cmd_sz == -1 || cmd_sz == 0 || strcmp(command, "\n") == 0)
         return ignore = true;
-        
     /* Remove newline character */
+
     command[cmd_sz - 1] = '\0';
+
+    trim(command, " ");
+    if(strlen(command) == 1 || strlen(command) == 0) {
+        return true;
+    }
     char s[3] = {0};
     s[0] = command[0];
     s[1] = command[1];

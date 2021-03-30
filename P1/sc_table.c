@@ -16,13 +16,9 @@ char* lookup_cmd(int i){
     return sc_table[i];
 }
 
-bool remove_from_sc_table(int i, char* cmd){
+bool remove_from_sc_table(int i){
     if(sc_table[i] == NULL){
         printf(RED"ERROR: ENTRY DOES NOT EXIST\n"RESET);
-        return false;
-    }
-    if(strcmp(cmd, sc_table[i]) != 0){
-        printf(RED"ERROR: COMMAND AND INDEX MISMATCH\n"RESET);
         return false;
     }
 
@@ -35,6 +31,10 @@ bool manage_sc_command(char** broken_cmd, token_list* list){
     if(strcmp(broken_cmd[1], "-i") != 0 && strcmp(broken_cmd[1], "-d")){
         printf(RED"ERROR: INVALID COMMAND\n"RESET);
         return false;
+    }
+    if(strcmp(broken_cmd[1], "-d") == 0){
+        bool ret = remove_from_sc_table(atoi(broken_cmd[2]));
+        return ret;
     }
 
     if(atoi(broken_cmd[2]) >= MAX_SC_TABLE_SIZE){
@@ -59,10 +59,7 @@ bool manage_sc_command(char** broken_cmd, token_list* list){
         bool ret = add_to_sc_table(atoi(broken_cmd[2]), command);
         return ret;
     }
-    if(strcmp(broken_cmd[1], "-d") == 0){
-        bool ret = remove_from_sc_table(atoi(broken_cmd[2]), command);
-        return ret;
-    }
+    
 }
 
 void print_sc_table(){

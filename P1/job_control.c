@@ -110,9 +110,12 @@ char** break_loner_cmds(char* cmd){
 }
 
 bool run_job(char* command){
+    if(strlen(command) == 1) return true;
+    
     token_list *list = parse_cmd(command);
     token_node* node = list->head;
     char** broken_cmd = break_loner_cmds(node->token); /* Returns a NULL if not fg, bg, sc, jobs */
+    if(broken_cmd == NULL) return false;
     if(list->size == 1 || (broken_cmd && strcmp("sc", broken_cmd[0]) == 0)){ /*possibly fg, bg, jobs, shortcut*/
         if(broken_cmd != NULL){
             if(strcmp(broken_cmd[0], "jobs") == 0){
