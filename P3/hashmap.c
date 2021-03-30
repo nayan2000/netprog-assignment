@@ -79,3 +79,25 @@ int get(hashmap *map, const char *key){
 int has_key(hashmap *map, const char *key){
 	return get(map, key) == -1 ? 0 : 1;
 }
+
+bool remove_key(hashmap *map, const char* key){
+	size_t loc = hash(key, map->capacity);
+	bucket_node *ptr = map->buckets[loc];
+	bucket_node* prev = NULL;
+
+	while(ptr){
+		if(!strcmp(ptr->key, key)){
+			if(prev == NULL){
+				map->buckets[loc] = ptr->next;
+			}
+			else
+				prev->next = ptr->next;
+			free(ptr);
+			return true;
+		}
+		prev = ptr;
+		ptr = ptr->next;
+	}
+
+	return false;
+}

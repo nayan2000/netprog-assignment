@@ -34,12 +34,14 @@ void handle_request(int cfd){
             }
             char *path = command + 3;
             if (chdir(path) < 0) { /* Execute cd */
-                perror(RED"CD EXECUTION ERROR"RESET);
-                _exit(EXIT_FAILURE);
+                perror(RED"Path does not exist\n"RESET);
+                strcpy(output, "cd error\n$");
             }
-            
-            strcpy(output, "Executed cd\n$");
+            else{
+                strcpy(output, "Executed cd\n$");
+            }
             write(cfd, output, strlen(output) + 1);
+   
         }
         else { /* Handle everything else */
 
@@ -98,6 +100,12 @@ void handle_request(int cfd){
                 write(cfd, output, strlen(output) + 1);
             }
            
+        }
+        if(args){
+            for(int i = 0; args[i]; i++){
+                free(args[i]);
+            }
+            free(args);
         }
         free(output);
     }

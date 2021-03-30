@@ -239,6 +239,7 @@ void serve_request(const request_msg *req){
             break;
         case 'r':
             remove_user_from_group(req->client_qid);
+            remove_key(map, req->uname);
             break;
         case 's':
             resp.mtype = RESP_MT_DATA;

@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 typedef struct bucket_node_t {
 	char key[20];
@@ -23,7 +24,7 @@ void insert(hashmap*, const char*, int);
 bucket_node* get_bucket(hashmap*, const char*);
 int get(hashmap*, const char*);
 int has_key(hashmap*, const char*);
-
+bool remove_key(hashmap *map, const char* key);
 
 
 #endif

@@ -41,7 +41,25 @@ void join_recv_add_messages(response_msg *res, G* shmp){
             g_name[k++] = res->data[j];
         }
         g_name[k] = 0;
+        bool exists = false;
+        for(int i = 0; i < MAX_GROUPS; i++){
+            if(strcmp(g_name, shmp->g_list[i].groupname) == 0){
+                exists = true;
+                break;
+            }
+        }
         skip += strlen(g_name);
+        if(!exists){
+            group g;
+            strcpy(g.groupname, g_name);
+            g.msg_cnt = 0;
+            strcpy(g.msgs[g.msg_cnt], res->data);
+            (g.msg_cnt)++;
+            shmp->g_list[shmp->cap] = g;
+            (shmp->cap)++;
+            return;
+        }
+        
         for(int i = 0; i < MAX_GROUPS; i++){
             if(strcmp(g_name, shmp->g_list[i].groupname) == 0){
                 char* temp = res->data + skip;
@@ -173,27 +191,29 @@ int main() {
     /* 2. Client MSGQ does not exist?
             - Welcome Client to the sysytem */
     msgrcv(clientId, &res, RESP_MSG_SIZE, -2, 0);
-
+    printf("SHM ID: %d\n", shmid);
     
     if(res.mtype == RESP_MT_CHECK_USER_EXIST){ /* User logged out and then logs in again */ 
         msgctl(clientId, IPC_RMID, NULL);
         clientId = atoi(res.data);
-
+        printf("Client ID: %d\n", clientId);
+        printf(YELLOW"\nYour username is %s.\n"RESET, uname);
+        printf(YELLOW"Use the same for future login!\n\n"RESET);
         /* Retrieve all pending messages */
+        printf(GREEN"Messages recieved when offline\n"RESET);
         while(msgrcv(clientId, &res, RESP_MSG_SIZE, 0, IPC_NOWAIT) != -1){
             join_recv_add_messages(&res, shmp);
             printf(YELLOW"%s\n"RESET, res.data);
         }
     }
-    printf("Client ID: %d\n", clientId);
-    printf("SHM ID: %d\n", shmid);
 
-    if(res.mtype == RESP_MT_CHECK_USER_NO_EXIST){ /* New User */
+    else if(res.mtype == RESP_MT_CHECK_USER_NO_EXIST){ /* New User */
+        printf("Client ID: %d\n", clientId);
+        printf(YELLOW"\nYour username is %s.\n"RESET, uname);
+        printf(YELLOW"Use the same for future login!\n"RESET);
         printf(GREEN"Welcome to the message system !\n"RESET);
     }
 
-    printf(YELLOW"\nYour username is %s.\n"RESET, uname);
-    printf(YELLOW"Use the same for future login!\n"RESET);
 
     int ch = -1;
     char* msg = (char*) malloc(MAX_SIZE);
@@ -316,8 +336,10 @@ int main() {
             printf("Enter message to send: ");
             fflush(stdout);
             read_line(STDIN_FILENO, msg, MAX_SIZE);
-            printf("Auto delete timer duration(0 for no timer): ");
-            scanf("%d", &req.t);
+            char num[3] = {0};
+            read_line(STDIN_FILENO, num, 3);
+            if(strlen(num) == 0) req.t = 0;
+            req.t = atoi(opt);
             strcpy(req.args, gname);
             strcpy(req.data, msg);
             req.command = 'g';
