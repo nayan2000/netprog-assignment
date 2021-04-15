@@ -22,9 +22,8 @@ int inet_connect(const char *host, const char *service, int type){
     hints.ai_canonname = NULL;
     hints.ai_addr = NULL;
     hints.ai_next = NULL;
-    hints.ai_family = AF_INET;        /* Allows IPv4 or IPv6 */
+    hints.ai_family = AF_UNSPEC;        /* Allows IPv4 or IPv6 */
     hints.ai_socktype = type;
-    hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
     s = getaddrinfo(host, service, &hints, &result);
     if (s != 0) {
         errno = ENOSYS;
@@ -71,9 +70,8 @@ static int inet_passive_socket(const char *service, int type, socklen_t *addrlen
     hints.ai_addr = NULL;
     hints.ai_next = NULL;
     hints.ai_socktype = type;
-    hints.ai_family = AF_INET;        /* Allows IPv4 or IPv6 */
+    hints.ai_family = AF_UNSPEC;        /* Allows IPv4 or IPv6 */
     hints.ai_flags = AI_PASSIVE;        /* Use wildcard IP address */
-    hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
 
     s = getaddrinfo(NULL, service, &hints, &result);
     if (s != 0)
@@ -149,59 +147,3 @@ char* inet_address_str(const struct sockaddr *addr, socklen_t addrlen,
     return addrStr;
 }
 
-void readline_buf_init(int fd, struct read_buf *rb){
-    rb->fd = fd;
-    rb->len = 0;
-    rb->next = 0;
-}
-
-/* Return a line of input from the buffer 'rb', placing the characters in
-   'buffer'. The 'n' argument specifies the size of 'buffer'. If the line of
-   input is larger than this, then the excess characters are discarded. */
-
-ssize_t readline_buf(read_buf *rb, char *buffer, size_t n)
-{
-    size_t cnt;
-    char c;
-
-    if (n <= 0 || buffer == NULL) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    cnt = 0;
-
-    /* Fetch characters from rb->buf, up to the next new line. */
-    for (;;) {
-
-        /* If there are insufficient characters in 'tlbuf', then obtain
-           further input from the associated file descriptor. */
-
-        if (rb->next >= rb->len) {
-            rb->len = read(rb->fd, rb->buf, RL_MAX_BUF);
-            if (rb->len == -1)
-                return -1;
-
-            if (rb->len == 0)        /* End of file */
-                break;
-
-            rb->next = 0;
-        }
-
-        c = rb->buf[rb->next];
-        rb->next++;
-        
-        if (cnt < n){
-            buffer[cnt] = c;
-            if(c == '\t')
-                buffer[cnt] = '\n';
-            cnt++;
-        }
-        if (c == '$')
-            break;
-    }
-    // printf(YELLOW"Read Size : %ld\n"RESET, cnt);
-    // printf(YELLOW"Read Value :\n%s"RESET, buffer);
-    // printf("\n%s\n", buffer + strlen(buffer) + 1);
-    return cnt;
-}
