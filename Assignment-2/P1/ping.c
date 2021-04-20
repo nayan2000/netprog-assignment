@@ -1,5 +1,7 @@
 #include "ping.h"
 
+#define MAX_HOSTS 100
+
 proto *pr;
 proto proto_v4 = { proc_v4, send_v4, NULL, NULL, NULL, 0, IPPROTO_ICMP };
 proto proto_v6 = { proc_v6, send_v6, init_v6, NULL, NULL, 0, IPPROTO_ICMPV6 };
@@ -207,7 +209,7 @@ void proc_v6(char *ptr, ssize_t len, struct msghdr *msg, struct timeval* tvrecv)
 				break;
 			}
 		}
-		printf("%d bytes from %s: seq=%u, hlim=",
+		printf("%ld bytes from %s: seq=%u, hlim=",
 				len, sock_ntop_host(pr->sarecv, pr->salen),
 				icmp6->icmp6_seq);
 		if (hlim == -1)
@@ -251,7 +253,7 @@ void readloop(void){
 			if (errno == EINTR)
 				continue;
 			else
-				err_sys("recvmsg error");
+				printf("recvmsg error");
 		}
 
 		gettimeofday(&tval, NULL);
@@ -259,8 +261,27 @@ void readloop(void){
 	}
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
+	char* hostlist[MAX_HOSTS];
+    for(int i = 0; i < MAX_HOSTS; ++i) hostlist[i] = malloc(15);
+    
+    FILE *fptr;
+    if((fptr = fopen(argv[1], "r")) == NULL) {
+        printf("Error in opening file.\n");
+        exit(1);
+    }
+
+    char* line = NULL;
+    size_t len = 0;
+    int i = 0;
+    int read;
+    while((read = getline(&line, &len, fptr)) != -1) {
+        strcpy(hostlist[i], line);
+        i++;
+    }
+
+    for(int i = 0; i < MAX_HOSTS; ++i) printf("%s", hostlist[i]);
+
 	struct addrinfo	*ai;
 	char *h;
 
@@ -286,8 +307,7 @@ int main(int argc, char **argv)
 	}
 	else if (ai->ai_family == AF_INET6) {
 		pr = &proto_v6;
-		if (IN6_IS_ADDR_V4MAPPED(&(((struct sockaddr_in6 *)
-								 ai->ai_addr)->sin6_addr)))
+		if (IN6_IS_ADDR_V4MAPPED(&(((struct sockaddr_in6 *) ai->ai_addr)->sin6_addr)))
 			perror("cannot ping IPv4-mapped IPv6 address");
 	}else
 		perror("unknown address family");
