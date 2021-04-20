@@ -100,6 +100,7 @@ int main(int argc, char **argv){
     if(argc != 4){
         printf(RED"USAGE ERROR\n"RESET);
         printf(YELLOW"Usage : ./<executable> <maxIdleServers> <minIdleServers> <maxRequestsPerChild>"RESET);
+        exit(0);
     }
 
     listenfd = inet_listen(SERV_PORT, BACKLOG, &addrlen); 
@@ -111,7 +112,6 @@ int main(int argc, char **argv){
     maxIdleServers = atoi(argv[1]);
     minIdleServers = atoi(argv[2]);
     maxRequestsPerChild = atoi(argv[3]); 
-    nchildren = maxIdleServers;
     cd = (child_details**)malloc(sizeof(child_details*) * 2*maxIdleServers + 33);
 
     pid_t ch;
@@ -120,6 +120,8 @@ int main(int argc, char **argv){
     FD_ZERO(&rset);
     int maxfd = -1;
 
+    nchildren = maxIdleServers;
+
     for (i = 0; i < nchildren; i++){
         make_child(i, listenfd, addrlen); /* parent returns */ 
         FD_SET(cd[i]->pipefd, &masterset); 
@@ -127,12 +129,12 @@ int main(int argc, char **argv){
         maxIndex = max(maxIndex, i);
     }
     print_details("ADD TO POOL", -1);
-    /* find any newly-available children */ 
     int n;
     char rc;
     nidle = nchildren;
+    signal(SIGINT, signal_handler);
+    signal(SIGPIPE, SIG_IGN);
     for(;;){
-        signal(SIGINT, signal_handler);
         rset = masterset;
         int nsel = select(maxfd + 1, &rset, NULL, NULL, NULL);
         if(nsel == -1 && errno == EINTR) continue;
@@ -140,11 +142,14 @@ int main(int argc, char **argv){
             if(cd[i] && FD_ISSET(cd[i]->pipefd, &rset)){
                 if((n = read(cd[i]->pipefd, &rc, 1)) == 0){
                     FD_CLR(cd[i]->pipefd, &masterset);
+                    nidle--;
                     nchildren--;
                     print_details("RECYCLE CHILD", i);
                     free(cd[i]);
                     cd[i] = NULL;
-                    
+                }
+                else if(n == -1){
+                    perror(RED"READ ERROR"RESET);
                 }
                 if(rc == 'b'){
                     nidle--;
@@ -158,7 +163,7 @@ int main(int argc, char **argv){
                     cd[i]->status = 0;
                     print_details("MARK FREE", i);
                 }
-                if(--nsel == 0) break; /* all done with select() results */
+                if(--nsel == 0) break;
             } 
         }
         int limit = 1;
@@ -170,6 +175,7 @@ int main(int argc, char **argv){
                 maxfd = max(maxfd, cd[i]->pipefd);
                 maxIndex = max(maxIndex, i);
                 nidle++;
+                nchildren++;
                 print_details("ADD TO POOL", i);
             }
             limit = min(32, 2*limit);

@@ -15,9 +15,11 @@
 /* Type definitions used by many programs */
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/uio.h>
 #include <sys/msg.h>
 #include <signal.h>
 #include <stdio.h>       /* Standard I/O functions */
