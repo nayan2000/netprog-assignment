@@ -5,6 +5,7 @@
 #define PORT 33777
 
 #define MAX_GROUP_LIMIT 10
+#define MAX_FILE_LIMIT 30
 #define BROADCAST_TIMEOUT 1
 
 void readLine(char* msg) {
@@ -17,7 +18,7 @@ void readLine(char* msg) {
 }
 
 void genMulticastIP(char* ip) {
-    ip = malloc(16); 
+    ip = (char*)malloc(16); 
     strcpy(ip, "239.0.0.");
     char l[3];
     int a = (rand() % 254) + 1;
@@ -34,11 +35,24 @@ void sendGrpMsg(char* dest_ip, char msg[BUFLEN]) {
 	si_dest.sin_addr.s_addr = inet_addr(dest_ip);
 }
 
+hashmap *grpip, *filelist;
+
 /*
 Use alarm signal for syncing files between group members
 */
 
+void syncfiles() {
+
+    alarm(60);
+}
+
+// Running on separate thread
+void handleMessages() {
+    
+}
+
 int main() {
+    signal(SIGALRM, syncfiles);
     srand(time(0));
 
     // printf("%s\n", genMulticastIP());
@@ -52,8 +66,8 @@ int main() {
         exit(1);
 	}
 
-    hashmap* grpip;
     create_hm(grpip, MAX_GROUP_LIMIT);
+    create_hm(filelist, MAX_FILE_LIMIT);
 
     int ch = 0;
     while(1) {
@@ -165,7 +179,7 @@ int main() {
             printf("Enter the message: ");
             readLine(txtmsg);
             strcat(msg, txtmsg);
-            char* dest_ip = malloc(16);
+            char* dest_ip = (char*)malloc(16);
             dest_ip = get(grpip, gname);
 
             struct sockaddr_in si_other;
@@ -180,8 +194,64 @@ int main() {
             }
 
         } else if(ch == 5) {
+            // Search for filename in local list first, if file is not in list, send special message to all group members of groups the user belongs to
+            char fname[20];
+            printf("Enter file name to download: ");
+            readLine(fname);
+
+            if(has_key(filelist, fname)) {
+                // File is present in local list
+            } else {
+                // Send special message
+            }
 
         } else if(ch == 6) {
+            char gname[20], pmsg[20];
+            char** options;
+            int i = 0;
+            options[i] = (char*)malloc(20);
+            printf("Enter group to send poll message to: ");
+            readLine(gname);
+            printf("Enter poll question: ");
+            readLine(pmsg);
+            char in[20];
+            while(1) {
+                printf("Enter poll option(%d): ", i + 1);
+                readLine(in);
+                strcpy(options[i], in);
+                printf("Add more options? (Y/N): ");
+                readLine(in);
+                if(!strcmp(in, "Y")) {
+                    options[++i] = (char*)malloc(20);
+                } else break;
+            }
+
+            /*
+                Message Format:
+                P:poll_question:poll_option_1:poll_option_2...
+            */
+
+            char msg[300] = "P:";
+            strcat(msg, pmsg);
+            for(int j = 0; j < i + 1; ++j) {
+                strcat(msg, options[j]);
+            }
+
+            char* dest_ip = (char*)malloc(16);
+            dest_ip = get(grpip, gname);
+
+            struct sockaddr_in si_other;
+            memset((char*) &si_other, 0, sizeof(si_other));
+            si_other.sin_family = AF_INET;
+            si_other.sin_port = htons(PORT);
+            si_other.sin_addr.s_addr = inet_addr(dest_ip);
+
+            if(sendto(s, msg, strlen(msg), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
+                printf("Error in sending group poll.\n");
+                exit(1);
+            }
+
+            // Handle replies
 
         } else if(ch == 7) {
             break;
