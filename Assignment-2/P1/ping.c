@@ -5,7 +5,6 @@ proto proto_v4 = { proc_v4, send_v4, NULL, NULL, NULL, 0, IPPROTO_ICMP };
 proto proto_v6 = { proc_v6, send_v6, init_v6, NULL, NULL, 0, IPPROTO_ICMPV6 };
 
 int	datalen = 56;		/* Data that goes with ICMP echo request */
-
 struct addrinfo* host_serv(const char *host, const char *serv, int family, int socktype){
 	int	n;
 	struct addrinfo	hints, *res;
@@ -259,8 +258,7 @@ void readloop(void){
 	}
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
 	struct addrinfo	*ai;
 	char *h;
 
