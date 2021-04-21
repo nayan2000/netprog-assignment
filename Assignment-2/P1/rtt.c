@@ -1,4 +1,4 @@
-#include "ping.h"
+#include "rtt.h"
 static int datalen = 56;		/* Data that goes with ICMP echo request */
 pid_t pid;
 
