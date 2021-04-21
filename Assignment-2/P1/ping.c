@@ -1,12 +1,19 @@
 #include "ping.h"
+static int datalen = 56;		/* Data that goes with ICMP echo request */
+pid_t pid;
 
-#define MAX_HOSTS 100
+void tv_sub(struct timeval *out, struct timeval *in){
+	if ( (out->tv_usec -= in->tv_usec) < 0) {	/* out -= in */
+		--out->tv_sec;
+		out->tv_usec += 1000000;
+	}
+	out->tv_sec -= in->tv_sec;
+}
 
-proto *pr;
-proto proto_v4 = { proc_v4, send_v4, NULL, NULL, NULL, 0, IPPROTO_ICMP };
-proto proto_v6 = { proc_v6, send_v6, init_v6, NULL, NULL, 0, IPPROTO_ICMPV6 };
-
-int	datalen = 56;		/* Data that goes with ICMP echo request */
+void err_exit(char* str){
+	perror(str);
+	exit(EXIT_FAILURE);
+}
 struct addrinfo* host_serv(const char *host, const char *serv, int family, int socktype){
 	int	n;
 	struct addrinfo	hints, *res;
@@ -47,73 +54,72 @@ char* sock_ntop_host(const struct sockaddr *sa, socklen_t salen){
 }
 
 uint16_t in_cksum(uint16_t *addr, int len){
-	int				nleft = len;
-	uint32_t		sum = 0;
-	uint16_t		*w = addr;
-	uint16_t		answer = 0;
-
-	/*
-	 * Our algorithm is simple, using a 32 bit accumulator (sum), we add
-	 * sequential 16 bit words to it, and at the end, fold back all the
-	 * carry bits from the top 16 bits into the lower 16 bits.
-	 */
+	int	nleft = len;
+	uint32_t sum = 0;
+	uint16_t *w = addr;
+	uint16_t answer = 0;
 	while (nleft > 1)  {
 		sum += *w++;
 		nleft -= 2;
 	}
 
-		/* 4mop up an odd byte, if necessary */
 	if (nleft == 1) {
 		*(unsigned char *)(&answer) = *(unsigned char *)w ;
 		sum += answer;
 	}
-
-		/* 4add back carry outs from top 16 bits to low 16 bits */
-	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
-	sum += (sum >> 16);			/* add carry */
-	answer = ~sum;				/* truncate to 16 bits */
+	sum = (sum >> 16) + (sum & 0xffff);
+	sum += (sum >> 16);			
+	answer = ~sum;
 	return (answer);
 }
 
-void send_v4(void){
-	int			len;
+void send_v4(int fd, struct proto *pr){
+	int	len;
 	struct icmp	*icmp;
+	char sendbuf[BUFSIZE] = {0};
 
-	icmp = (struct icmp *) sendbuf;
+	icmp = (struct icmp *)sendbuf;
 	icmp->icmp_type = ICMP_ECHO;
 	icmp->icmp_code = 0;
 	icmp->icmp_id = pid;
-	icmp->icmp_seq = nsent++;
-	memset(icmp->icmp_data, 0xa5, datalen);	/* fill with pattern */
-	gettimeofday((struct timeval *) icmp->icmp_data, NULL);
 
-	len = 8 + datalen;		/* checksum ICMP header and data */
-	icmp->icmp_cksum = 0;
-	icmp->icmp_cksum = in_cksum((u_short *) icmp, len);
+	for(int i = 0; i < 3; i++){
+		icmp->icmp_seq = i;
+		memset(icmp->icmp_data, 0xa5, datalen);	/* fill with pattern */
+		gettimeofday((struct timeval *) icmp->icmp_data, NULL);
 
-	sendto(sockfd, sendbuf, len, 0, pr->sasend, pr->salen);
+		len = 8 + datalen;		/* checksum ICMP header and data */
+		icmp->icmp_cksum = 0;
+		icmp->icmp_cksum = in_cksum((u_short *)icmp, len);
+
+		sendto(fd, sendbuf, len, 0, pr->sasend, pr->salen);
+
+	}
 }
 
-void send_v6(){
-	int					len;
-	struct icmp6_hdr	*icmp6;
+void send_v6(int fd, struct proto *pr){
+	int	len;
+	struct icmp6_hdr *icmp6;
+	char sendbuf[BUFSIZE] = {0};
 
 	icmp6 = (struct icmp6_hdr *) sendbuf;
 	icmp6->icmp6_type = ICMP6_ECHO_REQUEST;
 	icmp6->icmp6_code = 0;
 	icmp6->icmp6_id = pid;
-	icmp6->icmp6_seq = nsent++;
-	memset((icmp6 + 1), 0xa5, datalen);	/* fill with pattern */
-	gettimeofday((struct timeval *) (icmp6 + 1), NULL);
+	for(int i = 0; i < 3; i++){
+		icmp6->icmp6_seq = i;
+		memset((icmp6 + 1), 0xa5, datalen);	/* fill with pattern */
+		gettimeofday((struct timeval*)(icmp6 + 1), NULL);
 
-	len = 8 + datalen;		/* 8-byte ICMPv6 header */
-
-	sendto(sockfd, sendbuf, len, 0, pr->sasend, pr->salen);
+		len = 8 + datalen;		/* 8-byte ICMPv6 header */
+		sendto(fd, sendbuf, len, 0, pr->sasend, pr->salen);
+	}
 	/* kernel calculates and stores checksum for us */
 }
 
-void init_v6(){
+void init_v6(int sockfd){
 	int on = 1;
+	
 	/* install a filter that only passes ICMP6_ECHO_REPLY unless verbose */
 	struct icmp6_filter myfilt;
 	ICMP6_FILTER_SETBLOCKALL(&myfilt);
@@ -131,22 +137,7 @@ void init_v6(){
 	#endif
 }
 
-void sig_alrm(int signo){
-	(*pr->fsend)();
-
-	alarm(1);
-	return;
-}
-
-void tv_sub(struct timeval *out, struct timeval *in){
-	if ( (out->tv_usec -= in->tv_usec) < 0) {	/* out -= in */
-		--out->tv_sec;
-		out->tv_usec += 1000000;
-	}
-	out->tv_sec -= in->tv_sec;
-}
-
-void proc_v4(char *ptr, ssize_t len, struct msghdr *msg, struct timeval *tvrecv){
+void proc_v4(char *ptr, ssize_t len, struct msghdr *msg, struct timeval *tvrecv, host_det *hd){
 	int				hlen1, icmplen;
 	double			rtt;
 	struct ip		*ip;
@@ -171,20 +162,18 @@ void proc_v4(char *ptr, ssize_t len, struct msghdr *msg, struct timeval *tvrecv)
 		tvsend = (struct timeval *) icmp->icmp_data;
 		tv_sub(tvrecv, tvsend);
 		rtt = tvrecv->tv_sec * 1000.0 + tvrecv->tv_usec / 1000.0;
-
-		printf("%d bytes from %s: seq=%u, ttl=%d, rtt=%.3f ms\n",
-				icmplen, sock_ntop_host(pr->sarecv, pr->salen),
-				icmp->icmp_seq, ip->ip_ttl, rtt);
+		hd->RTT[hd->count] = rtt;
+		// printf("%d bytes from %s: seq=%u, ttl=%d, rtt=%.3f ms\n",
+		// 		icmplen, hd->ip,
+		// 		icmp->icmp_seq, ip->ip_ttl, rtt);
 
 	}
 }
 
-void proc_v6(char *ptr, ssize_t len, struct msghdr *msg, struct timeval* tvrecv){
+void proc_v6(char *ptr, ssize_t len, struct msghdr *msg, struct timeval* tvrecv, host_det* hd){
 	double				rtt;
 	struct icmp6_hdr	*icmp6;
 	struct timeval		*tvsend;
-	struct cmsghdr		*cmsg;
-	int					hlim;
 
 	icmp6 = (struct icmp6_hdr *) ptr;
 	if (len < 8)
@@ -200,138 +189,165 @@ void proc_v6(char *ptr, ssize_t len, struct msghdr *msg, struct timeval* tvrecv)
 		tv_sub(tvrecv, tvsend);
 		rtt = tvrecv->tv_sec * 1000.0 + tvrecv->tv_usec / 1000.0;
 
-		hlim = -1;
-		for (cmsg = CMSG_FIRSTHDR(msg); cmsg != NULL; cmsg = CMSG_NXTHDR(msg, cmsg)) {
-			if (cmsg->cmsg_level == IPPROTO_IPV6 &&
-				cmsg->cmsg_type == IPV6_HOPLIMIT) {
-				hlim = *(u_int32_t *)CMSG_DATA(cmsg);
-				break;
+		
+		hd->RTT[hd->count] = rtt;
+		// printf(", rtt=%.3f ms\n", rtt);
+	}
+}
+
+void* readloop(void *arg){
+	pthread_args *args = (pthread_args*)arg;
+	hashmap *hm = args->hm;
+    int epoll_fd = args->epoll_fd;
+	struct epoll_event ev_list[MAX_EVENTS];
+	struct msghdr msg;
+	struct iovec iov;
+	ssize_t	n;
+	struct timeval tval;
+	
+	while (1){
+        int ready = epoll_wait(epoll_fd, ev_list, MAX_EVENTS, EPOLL_TIMEOUT);
+		if (ready == -1){ 
+			if (errno == EINTR) 
+				continue; /* Restart if interrupted by signal */ 
+			else 
+				err_exit(RED"EPOLL WAIT ERROR"RESET); 
+		}        
+        if(ready == 0) {
+            printf(GREEN"TIMED OUT!\n"RESET);
+            break;
+        }
+        else if(ready == -1)
+            err_exit(RED"EPOLL WAIT ERROR"RESET);
+		for (int i = 0; i < ready; ++i){
+			if(ev_list[i].events & EPOLLIN){
+				char recvbuf[BUFSIZE] = {0};
+				char controlbuf[BUFSIZE] = {0};
+				int sock = ev_list[i].data.fd;
+
+				iov.iov_base = recvbuf;
+				iov.iov_len = sizeof(recvbuf);
+				msg.msg_name = (struct sockaddr*)calloc(1, sizeof(struct sockaddr));
+				msg.msg_namelen = sizeof(struct sockaddr);
+				msg.msg_iov = &iov;
+				msg.msg_iovlen = 1;
+				msg.msg_control = controlbuf;
+				msg.msg_controllen = sizeof(controlbuf);
+				
+				host_det *hd = get(hm, sock);
+				
+				n = recvmsg(sock, &msg, 0);
+				if (n < 0) {
+					if (errno == EINTR)
+						continue;
+					else
+						perror(RED"RECVMSG ERROR"RESET);
+				}
+				gettimeofday(&tval, NULL);
+				if(hd->type == 0)
+					proc_v4(recvbuf, n, &msg, &tval, hd);
+				else
+					proc_v6(recvbuf, n, &msg, &tval, hd);
+				hd->count++;
+				if(hd->count == 3){
+					printf(YELLOW"%s : %lf, %lf, %lf\n"RESET, hd->ip, hd->RTT[0], hd->RTT[1], hd->RTT[2]);
+					epoll_ctl(epoll_fd, EPOLL_CTL_DEL, sock, &ev_list[i]);
+					close(sock);
+				}
 			}
 		}
-		printf("%ld bytes from %s: seq=%u, hlim=",
-				len, sock_ntop_host(pr->sarecv, pr->salen),
-				icmp6->icmp6_seq);
-		if (hlim == -1)
-			printf("???");	/* ancillary data missing */
-		else
-			printf("%d", hlim);
-		printf(", rtt=%.3f ms\n", rtt);
 	}
+	return NULL;
 }
-
-void readloop(void){
-	int				size;
-	char			recvbuf[BUFSIZE];
-	char			controlbuf[BUFSIZE];
-	struct msghdr	msg;
-	struct iovec	iov;
-	ssize_t			n;
-	struct timeval	tval;
-
-	sockfd = socket(pr->sasend->sa_family, SOCK_RAW, pr->icmpproto);
-	setuid(getuid());		/* don't need special permissions any more */
-	if (pr->finit)
-		(*pr->finit)();
-
-	size = 60 * 1024;		/* OK if setsockopt fails */
-	setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
-
-	sig_alrm(SIGALRM);		/* send first packet */
-
-	iov.iov_base = recvbuf;
-	iov.iov_len = sizeof(recvbuf);
-	msg.msg_name = pr->sarecv;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = controlbuf;
-	for ( ; ; ) {
-		msg.msg_namelen = pr->salen;
-		msg.msg_controllen = sizeof(controlbuf);
-		n = recvmsg(sockfd, &msg, 0);
-		if (n < 0) {
-			if (errno == EINTR)
-				continue;
-			else
-				printf("recvmsg error");
-		}
-
-		gettimeofday(&tval, NULL);
-		(*pr->fproc)(recvbuf, n, &msg, &tval);
-	}
-}
-
-
-#define NUM_MAX_EVENTS  10      // maximum triggered events received from epoll_wait
-#define EPOLL_TIMEOUT   10000   // maximum timeout for epoll_wait in milliseconds
-
-#define HASH_DIM 100
-typedef struct pthread_args {
-    struct  host_info * hosts;
-    size_t  num_hosts;
-    int     epoll_fd;
-}pthread_args;
-
 
 int main(int argc, char **argv) {
 	FILE *fp;
-    int num_hosts = 0;
-    char filename[20] = {0};
-    char c;
+	struct addrinfo	*ai;
 	
-	strcpy(filename, "ip"); 
-    fp = fopen(filename, "r");
+    fp = fopen(FILENAME, "r");
 	if(fp == NULL){
-        printf("Could not open file %s", filename);
+        printf(RED"FILE OPEN ERROR : %s\n"RESET, FILENAME);
         return EXIT_FAILURE;
     }
-	hashmap hm;
-	create_hm(&hm, HASH_DIM);
-	    
-    char line[41] = {0};
-    size_t len = 41;
-    int i = 0;
-    int read;
-    while((read = getline(&line, &len, fp)) != -1){
-		line[read-1] = 0;
-        // hash_det h;
+	hashmap* hm = (hashmap*)malloc(sizeof(hashmap));
+	create_hm(hm, HASH_DIM);
+	pid = getpid() & 0xffff;	/* ICMP ID field is 16 bits */
+	int epoll_fd = epoll_create1(0);
+    if(epoll_fd == -1){
+        err_exit(RED"EPOLL CREATE ERROR"RESET);
+	}
+	printf(GREEN"PID: %d, PID_TRUNC: %d, EPOLL: %d\n"RESET, getpid(), pid, epoll_fd);
+	
+	pthread_t thread_id;
+    pthread_args args = {hm, epoll_fd};
+    pthread_create(&thread_id, NULL, readloop, (void*)&args);
 
+    char *ip = (char*)malloc(sizeof(char)*41);
+    size_t len = 41;
+    int read;
+	int sock_fd;
+    while((read = getline(&ip, &len, fp)) != -1){
+		ip[read-1] = 0;
+        host_det h;
+		bzero(&h, sizeof(h));
+		strcpy(h.ip, ip);
+
+		struct proto proto_v4 = { proc_v4, send_v4, NULL, NULL, NULL, 0, IPPROTO_ICMP };
+		struct proto proto_v6 = { proc_v6, send_v6, init_v6, NULL, NULL, 0, IPPROTO_ICMPV6 };
+		struct proto *pr;
+		ai = host_serv(ip, NULL, 0, 0);
+
+		char* host = sock_ntop_host(ai->ai_addr, ai->ai_addrlen);
+		// printf("PING %s (%s): %d data bytes\n",
+		// 		ai->ai_canonname ? ai->ai_canonname : host,
+		// 		host, datalen);
+
+		if (ai->ai_family == AF_INET) {
+			pr = &proto_v4;
+			h.type = 0;
+		} else if (ai->ai_family == AF_INET6) {
+			pr = &proto_v6;
+			h.type = 1;
+			if (IN6_IS_ADDR_V4MAPPED(&(((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr))){
+				perror(RED"CANNOT PING IPv4-MAPPED IPv6 ADDRESS"RESET);
+				continue;
+			}
+		}else{
+			perror(RED"UNKNOWN ADDRESS FAMILY"RESET);
+			continue;
+		}
+		
+
+		pr->sasend = ai->ai_addr;
+		pr->sarecv = calloc(1, ai->ai_addrlen);
+		pr->salen = ai->ai_addrlen;
+		int	size;
+		
+
+		sock_fd = socket(pr->sasend->sa_family, SOCK_RAW, pr->icmpproto);
+		if (pr->finit)
+			(*pr->finit)(sock_fd);
+
+		size = 60 * 1024;		/* OK if setsockopt fails */
+		setsockopt(sock_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+		struct epoll_event ev;
+		ev.events = EPOLLIN;
+		ev.data.fd = sock_fd;
+
+		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, &ev) == -1) {
+			close(epoll_fd);
+			err_exit(RED"EPOLL CTL ADD ERROR\n"RESET);
+		}
+		h.count = 0;
+		h.valid = true;
+		insert(hm, sock_fd, h);
+
+		(*pr->fsend)(sock_fd, pr);
+
+		freeaddrinfo(ai);
     }
 
-	struct addrinfo	*ai;
-	char *h;
-
-	pid = getpid() & 0xffff;	/* ICMP ID field is 16 bits */
-	struct sigaction act;
-	act.sa_handler = sig_alrm;
-	sigemptyset(&act.sa_mask);
-	if(sigaction(SIGALRM, &act, NULL) < 0){
-		perror(RED"SIG HANDLER"RESET);
-		return SIG_ERR;
-	}
-	ai = host_serv(host, NULL, 0, 0);
-	// if(ai == NULL) continue;
-	h = sock_ntop_host(ai->ai_addr, ai->ai_addrlen);
-
-	printf("PING %s (%s): %d data bytes\n",
-			ai->ai_canonname ? ai->ai_canonname : h,
-			h, datalen);
-
-	/* initialize according to protocol */
-	if (ai->ai_family == AF_INET) {
-		pr = &proto_v4;
-	}
-	else if (ai->ai_family == AF_INET6) {
-		pr = &proto_v6;
-		if (IN6_IS_ADDR_V4MAPPED(&(((struct sockaddr_in6 *) ai->ai_addr)->sin6_addr)))
-			perror("cannot ping IPv4-mapped IPv6 address");
-	}else
-		perror("unknown address family");
-
-	pr->sasend = ai->ai_addr;
-	pr->sarecv = (struct sockaddr*)calloc(1, ai->ai_addrlen);
-	pr->salen = ai->ai_addrlen;
-
-	readloop();
-
+    pthread_join(thread_id, NULL);
+    close(epoll_fd);
 	exit(0);
 }

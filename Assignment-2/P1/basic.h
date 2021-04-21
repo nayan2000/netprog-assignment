@@ -18,6 +18,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <pthread.h>
+#include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <sys/msg.h>
