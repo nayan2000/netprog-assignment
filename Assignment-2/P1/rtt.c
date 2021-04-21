@@ -263,10 +263,14 @@ void* readloop(void *arg){
 int main(int argc, char **argv) {
 	FILE *fp;
 	struct addrinfo	*ai;
-	
-    fp = fopen(FILENAME, "r");
+	if(argc != 2){
+		printf(RED"USAGE ERROR: ./rtt <IP_FILENAME>\n"RESET);
+		exit(EXIT_FAILURE);
+	}
+    fp = fopen(argv[1], "r");
 	if(fp == NULL){
-        printf(RED"FILE OPEN ERROR : %s\n"RESET, FILENAME);
+        printf(RED"FILE OPEN ERROR : %s\n"RESET, argv[1]);
+		printf(RED"ENSURE THAT THE FILE %s EXISTS\n"RESET, argv[1]);
         return EXIT_FAILURE;
     }
 	hashmap* hm = (hashmap*)malloc(sizeof(hashmap));
@@ -297,7 +301,7 @@ int main(int argc, char **argv) {
 		struct proto *pr;
 		ai = host_serv(ip, NULL, 0, 0);
 
-		char* host = sock_ntop_host(ai->ai_addr, ai->ai_addrlen);
+		// char* host = sock_ntop_host(ai->ai_addr, ai->ai_addrlen);
 		// printf("PING %s (%s): %d data bytes\n",
 		// 		ai->ai_canonname ? ai->ai_canonname : host,
 		// 		host, datalen);
