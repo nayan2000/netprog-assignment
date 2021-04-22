@@ -14,7 +14,7 @@ void err_exit(char* str){
 	perror(str);
 	exit(EXIT_FAILURE);
 }
-struct addrinfo* host_serv(const char *host, const char *serv, int family, int socktype){
+struct addrinfo* get_remote_addr_struct(const char *host, const char *serv, int family, int socktype){
 	int	n;
 	struct addrinfo	hints, *res;
 
@@ -24,14 +24,14 @@ struct addrinfo* host_serv(const char *host, const char *serv, int family, int s
 	hints.ai_socktype = socktype;	/* 0, SOCK_STREAM, SOCK_DGRAM, etc. */
 
 	if((n = getaddrinfo(host, serv, &hints, &res)) != 0){
-		perror("host_serv error");
+		perror(RED"GET ADDR INFO ERROR"RESET);
 		exit(EXIT_FAILURE);
 	}
 
 	return(res);	/* return pointer to first on linked list */
 }
 
-char* sock_ntop_host(const struct sockaddr *sa, socklen_t salen){
+char* get_addr_string(const struct sockaddr *sa, socklen_t salen){
     static char str[128];
 
 	switch (sa->sa_family) {
@@ -53,7 +53,7 @@ char* sock_ntop_host(const struct sockaddr *sa, socklen_t salen){
 	return NULL;
 }
 
-uint16_t in_cksum(uint16_t *addr, int len){
+uint16_t checksum(uint16_t *addr, int len){
 	int	nleft = len;
 	uint32_t sum = 0;
 	uint16_t *w = addr;
@@ -90,7 +90,7 @@ void send_v4(int fd, struct proto *pr){
 
 		len = 8 + datalen;		/* checksum ICMP header and data */
 		icmp->icmp_cksum = 0;
-		icmp->icmp_cksum = in_cksum((u_short *)icmp, len);
+		icmp->icmp_cksum = checksum((u_short *)icmp, len);
 
 		sendto(fd, sendbuf, len, 0, pr->sasend, pr->salen);
 
@@ -195,7 +195,7 @@ void proc_v6(char *ptr, ssize_t len, struct msghdr *msg, struct timeval* tvrecv,
 	}
 }
 
-void* readloop(void *arg){
+void* recv_icmp_reply(void *arg){
 	pthread_args *args = (pthread_args*)arg;
 	hashmap *hm = args->hm;
     int epoll_fd = args->epoll_fd;
@@ -284,7 +284,7 @@ int main(int argc, char **argv) {
 	
 	pthread_t thread_id;
     pthread_args args = {hm, epoll_fd};
-    pthread_create(&thread_id, NULL, readloop, (void*)&args);
+    pthread_create(&thread_id, NULL, recv_icmp_reply, (void*)&args);
 
     char *ip = (char*)malloc(sizeof(char)*41);
     size_t len = 41;
@@ -296,12 +296,12 @@ int main(int argc, char **argv) {
 		bzero(&h, sizeof(h));
 		strcpy(h.ip, ip);
 
-		struct proto proto_v4 = { proc_v4, send_v4, NULL, NULL, NULL, 0, IPPROTO_ICMP };
-		struct proto proto_v6 = { proc_v6, send_v6, init_v6, NULL, NULL, 0, IPPROTO_ICMPV6 };
+		struct proto proto_v4 = { proc_v4, send_v4, NULL, NULL, 0, IPPROTO_ICMP };
+		struct proto proto_v6 = { proc_v6, send_v6, init_v6, NULL, 0, IPPROTO_ICMPV6 };
 		struct proto *pr;
-		ai = host_serv(ip, NULL, 0, 0);
+		ai = get_remote_addr_struct(ip, NULL, 0, 0);
 
-		// char* host = sock_ntop_host(ai->ai_addr, ai->ai_addrlen);
+		// char* host = get_addr_string(ai->ai_addr, ai->ai_addrlen);
 		// printf("PING %s (%s): %d data bytes\n",
 		// 		ai->ai_canonname ? ai->ai_canonname : host,
 		// 		host, datalen);
@@ -309,7 +309,7 @@ int main(int argc, char **argv) {
 		if (ai->ai_family == AF_INET) {
 			pr = &proto_v4;
 			h.type = 0;
-		} else if (ai->ai_family == AF_INET6) {
+		}else if (ai->ai_family == AF_INET6) {
 			pr = &proto_v6;
 			h.type = 1;
 			if (IN6_IS_ADDR_V4MAPPED(&(((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr))){
@@ -321,19 +321,17 @@ int main(int argc, char **argv) {
 			continue;
 		}
 		
-
 		pr->sasend = ai->ai_addr;
-		pr->sarecv = calloc(1, ai->ai_addrlen);
 		pr->salen = ai->ai_addrlen;
-		int	size;
 		
-
+		int	size;
 		sock_fd = socket(pr->sasend->sa_family, SOCK_RAW, pr->icmpproto);
 		if (pr->finit)
 			(*pr->finit)(sock_fd);
 
 		size = 60 * 1024;		/* OK if setsockopt fails */
 		setsockopt(sock_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+
 		struct epoll_event ev;
 		ev.events = EPOLLIN;
 		ev.data.fd = sock_fd;
@@ -342,8 +340,8 @@ int main(int argc, char **argv) {
 			close(epoll_fd);
 			err_exit(RED"EPOLL CTL ADD ERROR\n"RESET);
 		}
+
 		h.count = 0;
-		h.valid = true;
 		insert(hm, sock_fd, h);
 
 		(*pr->fsend)(sock_fd, pr);

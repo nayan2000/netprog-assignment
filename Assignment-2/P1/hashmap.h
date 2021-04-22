@@ -7,7 +7,6 @@
 #include <stdbool.h>
 
 typedef struct host_det{
-    bool valid;
     char ip[41];
     bool type;		//0 - ipv4 and 1- ipv6
 	int count;

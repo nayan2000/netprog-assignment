@@ -20,23 +20,22 @@ typedef struct proto {
   void	 (*fsend)(int, struct proto*);
   void	 (*finit)(int);
   struct sockaddr  *sasend;	/* sockaddr{} for send, from getaddrinfo */
-  struct sockaddr  *sarecv;	/* sockaddr{} for receiving */
   socklen_t	    salen;		/* length of sockaddr{}s */
   int	   	    icmpproto;	/* IPPROTO_xxx value for ICMP */
 }proto;
 
 /* function prototypes */
 void err_exit(char*);
-struct addrinfo* host_serv(const char *, const char *, int, int);
-char* sock_ntop_host(const struct sockaddr *, socklen_t);
-uint16_t in_cksum(uint16_t *, int);
-void init_v6(int);
-void proc_v4(char *, ssize_t, struct msghdr *, struct timeval *, host_det*);
-void proc_v6(char *, ssize_t, struct msghdr *, struct timeval *, host_det*);
-void send_v6(int, struct proto*);
-void send_v4(int, struct proto*);
-// void readloop(void);
-void tv_sub(struct timeval *, struct timeval *);
+struct addrinfo* get_remote_addr_struct(const char*, const char*, int, int);
+char* get_addr_string(const struct sockaddr*, socklen_t);
+uint16_t checksum(uint16_t*, int);
+void  init_v6(int);
+void  proc_v4(char*, ssize_t, struct msghdr*, struct timeval*, host_det*);
+void  proc_v6(char*, ssize_t, struct msghdr*, struct timeval*, host_det*);
+void  send_v6(int, struct proto*);
+void  send_v4(int, struct proto*);
+void* recv_icmp_reply(void*);
+void  tv_sub(struct timeval*, struct timeval*);
 
 
 #endif
