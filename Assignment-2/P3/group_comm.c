@@ -94,7 +94,22 @@ void handleMessages(void* arg) {
                 }
             }
             else if(recvbuf[0] == 'G' && recvbuf[1] == ':'){
-                
+                char* addr[20] = {0};
+                inet_ntop(AF_INET, clAddr.sin_addr.s_addr, addr, 20);
+                bucket_node *temp;
+                for(int i = 0; i < MAX_GROUP_LIMIT; i++){
+                    if(grpip->buckets[i]){
+                        temp = grpip->buckets[i];
+                        while(temp != NULL){
+                            if(!strcmp((temp->val).val, addr)){
+                                break;
+                            }
+                            temp = temp->next;
+                        }
+                    }
+                }
+                printf("Message recieved for group : %s\n", temp->key);
+                printf("%s", recvbuf + 2);
             }
         }
         
