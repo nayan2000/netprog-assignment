@@ -33,12 +33,14 @@ void print_details(char* action, int i){
 }
 
 void signal_handler(int sig){
-    printf("Total Active Children : %d\n", nchildren);
-    printf("Total Idle Children: %d\n", nidle);
-    printf(YELLOW"%8s | %s", "PID", "CLIENTS HANDLED\n"RESET);
-    for(int i = 0; i <= maxIndex; i++){
-        if(cd[i]){
-            printf(GREEN"%8d | %5d\n"RESET, cd[i]->pid, cd[i]->count);
+    if(sig == SIGINT){
+        printf("Total Active Children : %d\n", nchildren);
+        printf("Total Idle Children: %d\n", nidle);
+        printf(YELLOW"%8s | %s", "PID", "CLIENTS HANDLED\n"RESET);
+        for(int i = 0; i <= maxIndex; i++){
+            if(cd[i]){
+                printf(GREEN"%8d | %5d\n"RESET, cd[i]->pid, cd[i]->count);
+            }
         }
     }
 }
@@ -51,7 +53,7 @@ int get_free_index(){
     return -1;
 }
 
-void main_child(int j, int listenfd, socklen_t addrlen){
+void main_child(int j, int fd, int listenfd, socklen_t addrlen){
     int connfd;
     socklen_t clilen;
     struct sockaddr *cliaddr;
@@ -61,18 +63,21 @@ void main_child(int j, int listenfd, socklen_t addrlen){
     for(int i = 0; i < maxRequestsPerChild; i++) {
         clilen = addrlen;
         connfd = accept(listenfd, cliaddr, &clilen);
-        write(STDERR_FILENO, 'b', 1);
         if(connfd == -1 && errno == EINTR) continue;
+
+        write(fd, 'b', 1);
         // handle_request(connfd);
         close(connfd);
-        write(STDERR_FILENO, 'f', 1);
+        if(i != maxRequestsPerChild - 1)
+            write(fd, 'f', 1);
     }
+    close(fd);
 }
 
 pid_t make_child(int i, int listenfd, int addrlen){ 
     int sockfd[2]; 
     pid_t pid; 
-    child_details* det = (child_details*)mallox(sizeof(child_details)); 
+    child_details* det = (child_details*)malloc(sizeof(child_details)); 
     socketpair(AF_LOCAL, SOCK_STREAM, 0, sockfd); 
     if((pid = fork()) > 0){ /* parent */ 
         close(sockfd[1]);
@@ -83,13 +88,10 @@ pid_t make_child(int i, int listenfd, int addrlen){
         cd[i] = det;
         return pid; 
     }
-    if(sockfd[1] != STDERR_FILENO){
-        dup2(sockfd[1], STDERR_FILENO); /* child's stream pipe to parent */ 
-        close(sockfd[1]);
-    }
+    
 
     close(sockfd[0]);
-    main_child(i, listenfd, addrlen);
+    main_child(i, sockfd[1], listenfd, addrlen);
     _exit(0);
 }
 
@@ -97,9 +99,9 @@ int main(int argc, char **argv){
     int listenfd, i;
     socklen_t addrlen;
 
-    if(argc != 4){
+    if(argc < 4){
         printf(RED"USAGE ERROR\n"RESET);
-        printf(YELLOW"Usage : ./<executable> <maxIdleServers> <minIdleServers> <maxRequestsPerChild>"RESET);
+        printf(YELLOW"Usage : ./prefork <maxIdleServers> <minIdleServers> <maxRequestsPerChild>"RESET);
         exit(0);
     }
 
@@ -140,9 +142,8 @@ int main(int argc, char **argv){
         if(nsel == -1 && errno == EINTR) continue;
         for(i = 0; i <= maxIndex; i++){
             if(cd[i] && FD_ISSET(cd[i]->pipefd, &rset)){
-                if((n = read(cd[i]->pipefd, &rc, 1)) == 0){
+                if((n = read(cd[i]->pipefd, &rc, 1)) == 0){ /* Child has exited */
                     FD_CLR(cd[i]->pipefd, &masterset);
-                    nidle--;
                     nchildren--;
                     print_details("RECYCLE CHILD", i);
                     free(cd[i]);

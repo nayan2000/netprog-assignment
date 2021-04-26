@@ -44,12 +44,12 @@ void free_hm(hashmap *map){
     free(map);
 }
 
-void insert(hashmap *map, const char *key, const char *val){
+void insert(hashmap *map, const char *key, group val){
 	size_t loc = hash(key, map->capacity);
 
 	bucket_node *n = (bucket_node*) malloc(sizeof(bucket_node));
 	strcpy(n->key, key);
-	strcpy(n->val, val);
+	n->val = val;
 	n->next = map->buckets[loc];
 
 	map->buckets[loc] = n;
@@ -61,23 +61,23 @@ bucket_node* get_bucket(hashmap *map, const char *key){
 	return map->buckets[loc];
 }
 
-char* get(hashmap *map, const char *key){
+group* get(hashmap *map, const char *key){
 	size_t loc = hash(key, map->capacity);
 
 	bucket_node *ptr = map->buckets[loc];
 
 	while(ptr){
 		if(!strcmp(ptr->key, key))
-			return ptr->val;
+			return &(ptr->val);
 
 		ptr = ptr->next;
 	}
 
-	return "-1";
+	return NULL;
 }
 
 int has_key(hashmap *map, const char *key){
-	return strcmp(get(map, key), "-1") == 0 ? 1 : 0;
+	return get(map, key) == NULL ? 0 : 1;
 }
 
 bool remove_key(hashmap *map, const char* key){

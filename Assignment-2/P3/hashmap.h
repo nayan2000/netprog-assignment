@@ -5,9 +5,13 @@
 #include <string.h>
 #include <stdbool.h>
 
+typedef struct group{
+	char val[16];
+	bool is_member;
+}group;
 typedef struct bucket_node_t {
 	char key[20];
-	char val[15];
+	group val;
 	struct bucket_node_t *next;
 } bucket_node;
 
@@ -20,9 +24,9 @@ size_t hash(const char*, size_t);
 void create_hm(hashmap*, size_t);
 void free_bucket(bucket_node*);
 void free_hm(hashmap*);
-void insert(hashmap*, const char*, const char*);
+void insert(hashmap*, const char*, group g);
 bucket_node* get_bucket(hashmap*, const char*);
-char* get(hashmap*, const char*);
+group* get(hashmap*, const char*);
 int has_key(hashmap*, const char*);
 bool remove_key(hashmap *map, const char* key);
 
