@@ -1,7 +1,8 @@
 #include "rtt.h"
 static int datalen = 56;		/* Data that goes with ICMP echo request */
 pid_t pid;
-
+struct proto proto_v4 = { proc_v4, send_v4, NULL, NULL, 0, IPPROTO_ICMP };
+struct proto proto_v6 = { proc_v6, send_v6, init_v6, NULL, 0, IPPROTO_ICMPV6 };
 void tv_sub(struct timeval *out, struct timeval *in){
 	if ( (out->tv_usec -= in->tv_usec) < 0) {	/* out -= in */
 		--out->tv_sec;
@@ -24,8 +25,7 @@ struct addrinfo* get_remote_addr_struct(const char *host, const char *serv, int 
 	hints.ai_socktype = socktype;	/* 0, SOCK_STREAM, SOCK_DGRAM, etc. */
 
 	if((n = getaddrinfo(host, serv, &hints, &res)) != 0){
-		perror(RED"GET ADDR INFO ERROR"RESET);
-		exit(EXIT_FAILURE);
+		return NULL;
 	}
 
 	return(res);	/* return pointer to first on linked list */
@@ -81,13 +81,12 @@ void send_v4(int fd, struct proto *pr){
 	icmp = (struct icmp *)sendbuf;
 	icmp->icmp_type = ICMP_ECHO;
 	icmp->icmp_code = 0;
-	icmp->icmp_id = pid;
+	icmp->icmp_id = (fd + pid) & 0xffff;
 
 	for(int i = 0; i < 3; i++){
 		icmp->icmp_seq = i;
 		memset(icmp->icmp_data, 0xa5, datalen);	/* fill with pattern */
 		gettimeofday((struct timeval *) icmp->icmp_data, NULL);
-
 		len = 8 + datalen;		/* checksum ICMP header and data */
 		icmp->icmp_cksum = 0;
 		icmp->icmp_cksum = checksum((u_short *)icmp, len);
@@ -105,7 +104,7 @@ void send_v6(int fd, struct proto *pr){
 	icmp6 = (struct icmp6_hdr *) sendbuf;
 	icmp6->icmp6_type = ICMP6_ECHO_REQUEST;
 	icmp6->icmp6_code = 0;
-	icmp6->icmp6_id = pid;
+	icmp6->icmp6_id = (fd + pid) & 0xffff;
 	for(int i = 0; i < 3; i++){
 		icmp6->icmp6_seq = i;
 		memset((icmp6 + 1), 0xa5, datalen);	/* fill with pattern */
@@ -137,7 +136,7 @@ void init_v6(int sockfd){
 	#endif
 }
 
-void proc_v4(char *ptr, ssize_t len, struct msghdr *msg, struct timeval *tvrecv, host_det *hd){
+bool proc_v4(char *ptr, ssize_t len, struct msghdr *msg, struct timeval *tvrecv, host_det *hd, int fd){
 	int				hlen1, icmplen;
 	double			rtt;
 	struct ip		*ip;
@@ -147,17 +146,17 @@ void proc_v4(char *ptr, ssize_t len, struct msghdr *msg, struct timeval *tvrecv,
 	ip = (struct ip *) ptr;		/* start of IP header */
 	hlen1 = ip->ip_hl << 2;		/* length of IP header */
 	if(ip->ip_p != IPPROTO_ICMP)
-		return;				/* not ICMP */
+		return false;				/* not ICMP */
 
 	icmp = (struct icmp *) (ptr + hlen1);	/* start of ICMP header */
 	if((icmplen = len - hlen1) < 8)
-		return;				/* malformed packet */
+		return false;				/* malformed packet */
 
 	if (icmp->icmp_type == ICMP_ECHOREPLY) {
-		if (icmp->icmp_id != pid)
-			return;			/* not a response to our ECHO_REQUEST */
+		if (icmp->icmp_id != ((fd + pid) & 0xffff))
+			return false;			/* not a response to our ECHO_REQUEST */
 		if (icmplen < 16)
-			return;			/* not enough data to use */
+			return false;			/* not enough data to use */
 
 		tvsend = (struct timeval *) icmp->icmp_data;
 		tv_sub(tvrecv, tvsend);
@@ -166,24 +165,25 @@ void proc_v4(char *ptr, ssize_t len, struct msghdr *msg, struct timeval *tvrecv,
 		// printf("%d bytes from %s: seq=%u, ttl=%d, rtt=%.3f ms\n",
 		// 		icmplen, hd->ip,
 		// 		icmp->icmp_seq, ip->ip_ttl, rtt);
-
+		return true;
 	}
+	return false;
 }
 
-void proc_v6(char *ptr, ssize_t len, struct msghdr *msg, struct timeval* tvrecv, host_det* hd){
+bool proc_v6(char *ptr, ssize_t len, struct msghdr *msg, struct timeval* tvrecv, host_det* hd, int fd){
 	double				rtt;
 	struct icmp6_hdr	*icmp6;
 	struct timeval		*tvsend;
 
 	icmp6 = (struct icmp6_hdr *) ptr;
 	if (len < 8)
-		return;				/* malformed packet */
+		return false;				/* malformed packet */
 
 	if (icmp6->icmp6_type == ICMP6_ECHO_REPLY) {
-		if (icmp6->icmp6_id != pid)
-			return;			/* not a response to our ECHO_REQUEST */
+		if (icmp6->icmp6_id != ((pid+fd) & 0xffff))
+			return false;			/* not a response to our ECHO_REQUEST */
 		if (len < 16)
-			return;			/* not enough data to use */
+			return false;			/* not enough data to use */
 
 		tvsend = (struct timeval *) (icmp6 + 1);
 		tv_sub(tvrecv, tvsend);
@@ -192,7 +192,9 @@ void proc_v6(char *ptr, ssize_t len, struct msghdr *msg, struct timeval* tvrecv,
 		
 		hd->RTT[hd->count] = rtt;
 		// printf(", rtt=%.3f ms\n", rtt);
+		return true;
 	}
+	return false;
 }
 
 void* recv_icmp_reply(void *arg){
@@ -214,7 +216,7 @@ void* recv_icmp_reply(void *arg){
 				err_exit(RED"EPOLL WAIT ERROR"RESET); 
 		}        
         if(ready == 0) {
-            printf(GREEN"TIMED OUT!\n"RESET);
+            printf(GREEN"DONE!\n"RESET);
             break;
         }
         else if(ready == -1)
@@ -244,10 +246,12 @@ void* recv_icmp_reply(void *arg){
 						perror(RED"RECVMSG ERROR"RESET);
 				}
 				gettimeofday(&tval, NULL);
+				bool ret;
 				if(hd->type == 0)
-					proc_v4(recvbuf, n, &msg, &tval, hd);
+					ret = proc_v4(recvbuf, n, &msg, &tval, hd, sock);
 				else
-					proc_v6(recvbuf, n, &msg, &tval, hd);
+					ret = proc_v6(recvbuf, n, &msg, &tval, hd, sock);
+				if(!ret) continue;
 				hd->count++;
 				if(hd->count == 3){
 					printf(YELLOW"%s : %lf, %lf, %lf\n"RESET, hd->ip, hd->RTT[0], hd->RTT[1], hd->RTT[2]);
@@ -280,7 +284,7 @@ int main(int argc, char **argv) {
     if(epoll_fd == -1){
         err_exit(RED"EPOLL CREATE ERROR"RESET);
 	}
-	printf(GREEN"PID: %d, PID_TRUNC: %d, EPOLL: %d\n"RESET, getpid(), pid, epoll_fd);
+	// printf(GREEN"PID: %d, PID_TRUNC: %d, EPOLL: %d\n"RESET, getpid(), pid, epoll_fd);
 	
 	pthread_t thread_id;
     pthread_args args = {hm, epoll_fd};
@@ -296,11 +300,13 @@ int main(int argc, char **argv) {
 		bzero(&h, sizeof(h));
 		strcpy(h.ip, ip);
 
-		struct proto proto_v4 = { proc_v4, send_v4, NULL, NULL, 0, IPPROTO_ICMP };
-		struct proto proto_v6 = { proc_v6, send_v6, init_v6, NULL, 0, IPPROTO_ICMPV6 };
+		
 		struct proto *pr;
 		ai = get_remote_addr_struct(ip, NULL, 0, 0);
-
+		if(ai == NULL){
+			printf("%s : NA NA NA, null\n", ip);
+			continue;
+		}
 		// char* host = get_addr_string(ai->ai_addr, ai->ai_addrlen);
 		// printf("PING %s (%s): %d data bytes\n",
 		// 		ai->ai_canonname ? ai->ai_canonname : host,
@@ -326,6 +332,7 @@ int main(int argc, char **argv) {
 		
 		int	size;
 		sock_fd = socket(pr->sasend->sa_family, SOCK_RAW, pr->icmpproto);
+		if(sock_fd < 0) continue;
 		if (pr->finit)
 			(*pr->finit)(sock_fd);
 
@@ -335,10 +342,12 @@ int main(int argc, char **argv) {
 		struct epoll_event ev;
 		ev.events = EPOLLIN;
 		ev.data.fd = sock_fd;
-
+		
 		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, &ev) == -1) {
-			close(epoll_fd);
-			err_exit(RED"EPOLL CTL ADD ERROR\n"RESET);
+			close(sock_fd);
+			perror(RED"EPOLL CTL ADD ERROR\n"RESET);
+			printf("%s : NA NA NA\n", ip);
+			continue;
 		}
 
 		h.count = 0;

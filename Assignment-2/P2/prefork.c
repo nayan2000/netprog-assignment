@@ -53,6 +53,23 @@ int get_free_index(){
     return -1;
 }
 
+void handle_request(int fd){
+    char *reply = 
+    "HTTP/1.1 200 OK\n"
+    "Date: Thu, 19 Feb 2009 12:27:04 GMT\n"
+    "Server: Apache/2.2.3\n"
+    "Last-Modified: Wed, 18 Jun 2003 16:05:58 GMT\n"
+    "Content-Type: text/html\n"
+    "Content-Length: 15\n"
+    "Accept-Ranges: bytes\n"
+    "Connection: close\n"
+    "\n"
+    "sdfkjsdnbfkjbsf";
+
+    printf("Client connected\n");
+    send(fd, reply, strlen(reply), 0);
+}
+
 void main_child(int j, int fd, int listenfd, socklen_t addrlen){
     int connfd;
     socklen_t clilen;
@@ -66,9 +83,9 @@ void main_child(int j, int fd, int listenfd, socklen_t addrlen){
         if(connfd == -1 && errno == EINTR) continue;
 
         write(fd, 'b', 1);
-        // handle_request(connfd);
+        handle_request(connfd);
         close(connfd);
-        if(i != maxRequestsPerChild - 1)
+        if(i < maxRequestsPerChild - 1)
             write(fd, 'f', 1);
     }
     close(fd);
