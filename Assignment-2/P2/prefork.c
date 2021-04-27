@@ -6,30 +6,32 @@ static int maxIndex = -1;
 static int nidle, nchildren;
 
 void print_details(char* action, int i){
-    printf("Total Active Children : %d\n", nchildren);
+    printf(GREEN"Total Active Children : %d"RESET"\n", nchildren);
+    printf(GREEN"Total Idle Children : %d"RESET"\n", nidle);
     int numCl = 0;
     for(int j = 0; j <= maxIndex; j++){
         if(cd[j] && cd[j]->status == 1){
             numCl++;
         }
     }
-    printf("Number of clients being Handled : %d\n", numCl);
-    printf("Action : %s\n", action);
+    printf(GREEN"Number of clients being Handled : %d"RESET"\n", numCl);
+    printf(GREEN"Action : %s\n"RESET, action);
     if(!strcmp(action, "MARK BUSY")){
-        printf("Child %d accepted a client\n", cd[i]->pid);
+        printf(GREEN"Child %d accepted a client"RESET"\n", cd[i]->pid);
     }
     else if(!strcmp(action, "MARK FREE")){
-        printf("Child %d finished a request\n", cd[i]->pid);
+        printf(GREEN"Child %d finished a request"RESET"\n", cd[i]->pid);
     }
     else if(!strcmp(action, "RECYCLE CHILD")){
-        printf("Child %d recycled\n", cd[i]->pid);
+        printf(GREEN"Child %d recycled"RESET"\n", cd[i]->pid);
     }
     else if(!strcmp(action, "ADD TO POOL") && i != -1){
-        printf("Child %d added\n", cd[i]->pid);
+        printf(GREEN"Child %d added"RESET"\n", cd[i]->pid);
     }
     else if(!strcmp(action, "REMOVE FROM POOL") && i != -1){
-        printf("Child %d removed\n", cd[i]->pid);
+        printf(GREEN"Child %d removed"RESET"\n", cd[i]->pid);
     }
+    printf("\n");
 }
 
 void signal_handler(int sig){
@@ -39,7 +41,7 @@ void signal_handler(int sig){
         printf(YELLOW"%8s | %s", "PID", "CLIENTS HANDLED\n"RESET);
         for(int i = 0; i <= maxIndex; i++){
             if(cd[i]){
-                printf(GREEN"%8d | %5d\n"RESET, cd[i]->pid, cd[i]->count);
+                printf(GREEN"%8d | %5ld\n"RESET, cd[i]->pid, cd[i]->count);
             }
         }
     }
@@ -53,8 +55,8 @@ int get_free_index(){
     return -1;
 }
 
-void handle_request(int fd){
-    char *reply = 
+void handle_request(int connfd){
+    char reply[] = 
     "HTTP/1.1 200 OK\n"
     "Date: Thu, 19 Feb 2009 12:27:04 GMT\n"
     "Server: Apache/2.2.3\n"
@@ -64,10 +66,11 @@ void handle_request(int fd){
     "Accept-Ranges: bytes\n"
     "Connection: close\n"
     "\n"
-    "sdfkjsdnbfkjbsf";
+    "dummy\n";
 
-    printf("Client connected\n");
-    send(fd, reply, strlen(reply), 0);
+    // printf("Client handle by %d\n", getpid());
+    sleep(1);
+    // send(connfd, reply, strlen(reply), 0);
 }
 
 void main_child(int j, int fd, int listenfd, socklen_t addrlen){
@@ -75,18 +78,18 @@ void main_child(int j, int fd, int listenfd, socklen_t addrlen){
     socklen_t clilen;
     struct sockaddr *cliaddr;
     cliaddr = (struct sockaddr*)malloc(addrlen);
-
-    printf("Child %d : PID %ld starting\n", j, (long) getpid());
+    sleep(1);
+    // printf("Child %d : PID %ld starting\n", j, (long) getpid());
     for(int i = 0; i < maxRequestsPerChild; i++) {
         clilen = addrlen;
-        connfd = accept(listenfd, cliaddr, &clilen);
+        // connfd = accept(listenfd, cliaddr, &clilen);
         if(connfd == -1 && errno == EINTR) continue;
 
-        write(fd, 'b', 1);
+        write(fd, "b", 1);
         handle_request(connfd);
         close(connfd);
         if(i < maxRequestsPerChild - 1)
-            write(fd, 'f', 1);
+            write(fd, "f", 1);
     }
     close(fd);
 }
@@ -118,7 +121,7 @@ int main(int argc, char **argv){
 
     if(argc < 4){
         printf(RED"USAGE ERROR\n"RESET);
-        printf(YELLOW"Usage : ./prefork <maxIdleServers> <minIdleServers> <maxRequestsPerChild>"RESET);
+        printf(GREEN"Usage : ./prefork <maxIdleServers> <minIdleServers> <maxRequestsPerChild>\n"RESET);
         exit(0);
     }
 
@@ -131,8 +134,9 @@ int main(int argc, char **argv){
     maxIdleServers = atoi(argv[1]);
     minIdleServers = atoi(argv[2]);
     maxRequestsPerChild = atoi(argv[3]); 
-    cd = (child_details**)malloc(sizeof(child_details*) * 2*maxIdleServers + 33);
-
+    cd = (child_details**)malloc(sizeof(child_details*) * (2*maxIdleServers + 33));
+    for(int i = 0; i < 2*maxIdleServers + 33; i++)
+        cd[i] = NULL;
     pid_t ch;
     fd_set rset, masterset;
     FD_ZERO(&masterset);
@@ -147,9 +151,14 @@ int main(int argc, char **argv){
         maxfd = max(maxfd, cd[i]->pipefd);
         maxIndex = max(maxIndex, i);
     }
+    for(int i = 0; i < 2*maxIdleServers+33; i++){
+        if(cd[i]){
+            printf("%d, %d\n", cd[i]->pid, cd[i]->pipefd);
+        }
+    }
     print_details("ADD TO POOL", -1);
     int n;
-    char rc;
+    char rc[2] = {0};
     nidle = nchildren;
     signal(SIGINT, signal_handler);
     signal(SIGPIPE, SIG_IGN);
@@ -159,9 +168,11 @@ int main(int argc, char **argv){
         if(nsel == -1 && errno == EINTR) continue;
         for(i = 0; i <= maxIndex; i++){
             if(cd[i] && FD_ISSET(cd[i]->pipefd, &rset)){
-                if((n = read(cd[i]->pipefd, &rc, 1)) == 0){ /* Child has exited */
+                if((n = read(cd[i]->pipefd, rc, 1)) == 0){ /* Child has exited */
                     FD_CLR(cd[i]->pipefd, &masterset);
                     nchildren--;
+                    cd[i]->count = 0;
+                    cd[i]->status = 0;
                     print_details("RECYCLE CHILD", i);
                     free(cd[i]);
                     cd[i] = NULL;
@@ -169,49 +180,52 @@ int main(int argc, char **argv){
                 else if(n == -1){
                     perror(RED"READ ERROR"RESET);
                 }
-                if(rc == 'b'){
+                else if(rc[0] == 'b'){
                     nidle--;
                     cd[i]->count++;
                     cd[i]->status = 1;
                     print_details("MARK BUSY", i);
                 }
-                else if(rc == 'f'){
+                else if(rc[1] == 'f'){
                     nidle++;
                     cd[i]->count--;
                     cd[i]->status = 0;
                     print_details("MARK FREE", i);
                 }
-                if(--nsel == 0) break;
-            } 
-        }
-        int limit = 1;
-        while(nidle < minIdleServers){
-            for(int spawn = 0; spawn < limit; spawn++){
-                i = get_free_index();
-                make_child(i, listenfd, addrlen); /* parent returns */ 
-                FD_SET(cd[i]->pipefd, &masterset); 
-                maxfd = max(maxfd, cd[i]->pipefd);
-                maxIndex = max(maxIndex, i);
-                nidle++;
-                nchildren++;
-                print_details("ADD TO POOL", i);
+                
             }
-            limit = min(32, 2*limit);
-            sleep(1);
-        }
+            int limit = 1;
+            while(nidle < minIdleServers){
+                for(int spawn = 0; spawn < limit; spawn++){
+                    int l = get_free_index();
+                    make_child(l, listenfd, addrlen); /* parent returns */ 
+                    FD_SET(cd[l]->pipefd, &masterset); 
+                    maxfd = max(maxfd, cd[l]->pipefd);
+                    maxIndex = max(maxIndex, l);
+                    nidle++;
+                    nchildren++;
+                    print_details("ADD TO POOL", l);
+                }
+                limit = min(32, 2*limit);
+                sleep(1);
+            }
 
-        i = 0;
-        while(nidle > maxIdleServers){
-            if(cd[i] && cd[i]->status == 0){
-                kill(cd[i]->pid, SIGTERM);
-                FD_CLR(cd[i]->pipefd, &masterset);
-                nidle--;
-                nchildren--;
-                print_details("REMOVE FROM POOL", i);
-                free(cd[i]);
-                cd[i] = NULL;
+            int l = 0;
+            while(nidle > maxIdleServers){
+                if(cd[l] && cd[l]->status == 0){
+                    kill(cd[l]->pid, SIGTERM);
+                    FD_CLR(cd[l]->pipefd, &masterset);
+                    nidle--;
+                    nchildren--;
+                    cd[l]->count = 0;
+                    cd[l]->status = 0;
+                    print_details("REMOVE FROM POOL", l);
+                    free(cd[l]);
+                    cd[l] = NULL;
+                }
+                l++;
             }
-            i++;
+            if(--nsel == 0) break; 
         }
     }
 }

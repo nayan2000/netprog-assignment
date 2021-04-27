@@ -3,7 +3,7 @@
 
 #include "inet_sockets.h"
 
-#define SERV_PORT 12345
+#define SERV_PORT "12345"
 #define BACKLOG 10
 #define MAP_SIZE 40
 
