@@ -174,7 +174,7 @@ void handleMessages(void* arg) {
                 strcpy(cl_ip, strtok(NULL, ":"));
                 token = strtok(NULL, ":");
                 while(token) {
-                    insert2(filelist, token, cl_ip);
+                    if(!has_key(filelist, token)) insert2(filelist, token, cl_ip);
                     token = strtok(NULL, ":");
                 }
             }
@@ -237,9 +237,10 @@ int main() {
         printf("2. Search for a group\n");
         printf("3. Join a group\n");
         printf("4. Send a group message\n");
-        printf("5. Download a file\n");
-        printf("6. Start a group poll\n");
-        printf("7. Exit\n");
+        printf("5. View file list\n");
+        printf("6. Download a file\n");
+        printf("7. Start a group poll\n");
+        printf("8. Exit\n");
         printf("Choose an option: ");
         scanf("%d", &ch);
 
@@ -366,6 +367,31 @@ int main() {
             }
 
         } else if(ch == 5) {
+            // Read local files from disk and add to filelist, then display filelist
+            struct sockaddr_in ip;
+            socklen_t iplen = sizeof(ip);
+            char cl_ip[16] = {0};
+            getsockname(sockfd_m, (struct sockaddr*)&ip, &iplen);
+            inet_ntop(AF_INET, &(ip.sin_addr), cl_ip, INET_ADDRSTRLEN);
+            
+            DIR *d = opendir(".");
+            struct dirent* dir;
+            if(d) {
+                while((dir = readdir(d)) != NULL) {
+                    if(!has_key(filelist, dir->d_name)) insert2(filelist, dir->d_name, cl_ip);
+                }
+            }
+
+            printf("Filelist:\n");
+            for(int i = 0; i < filelist->capacity; ++i) {
+                bucket_node* temp = filelist->buckets[i];
+                while(temp) {
+                    printf("%s\n", temp->key);
+                    temp = temp->next;
+                }
+            }
+
+        } else if(ch == 6) {
             // Search for filename in local list first, if file is not in list, send special message to all group members of groups the user belongs to
             char fname[20];
             printf("Enter file name to download: ");
@@ -377,7 +403,7 @@ int main() {
                 // Send special message
             }
 
-        } else if(ch == 6) {
+        } else if(ch == 7) {
             char gname[20], pmsg[20];
             char** options;
             int i = 0;
@@ -427,7 +453,7 @@ int main() {
 
             // Handle replies
 
-        } else if(ch == 7) {
+        } else if(ch == 8) {
             break;
         } else {
             printf("Invalid option, try again.\n");
