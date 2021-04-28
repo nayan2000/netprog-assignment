@@ -27,6 +27,8 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <time.h>
+#include <pthread.h>
+#include <dirent.h>
 
 #include <unistd.h>     /* Prototypes for many system calls */
 #include <errno.h>      /* Declares errno and defines error constants */
