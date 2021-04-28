@@ -87,6 +87,21 @@ group* get(hashmap *map, const char *key){
 	return NULL;
 }
 
+char* get2(hashmap *map, const char *key){
+	size_t loc = hash(key, map->capacity);
+
+	bucket_node *ptr = map->buckets[loc];
+
+	while(ptr){
+		if(!strcmp(ptr->key, key))
+			return &(ptr->val);
+
+		ptr = ptr->next;
+	}
+
+	return NULL;
+}
+
 int has_key(hashmap *map, const char *key){
 	return get(map, key) == NULL ? 0 : 1;
 }

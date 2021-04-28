@@ -43,6 +43,9 @@ void sendGrpMsg(char* dest_ip, char msg[BUFLEN]) {
     P - Poll Message
     F - Filelist Request Message
     R - Filelist Reply Message
+    C - File Data Request Message
+    D - File Data Reply Message
+    S - File Transfer Special Message
 */
 
 
@@ -95,7 +98,7 @@ void handleMessages(void* arg) {
     socklen_t len = sizeof(struct sockaddr_in);
     bzero(&clAddr, sizeof(struct sockaddr_in));
     while(1){
-        char recvbuf[BUFSIZ] = {0};
+        char recvbuf[BUFLEN] = {0};
         int retval;
         fd_set rfds;
         // struct timeval tv;
@@ -109,7 +112,7 @@ void handleMessages(void* arg) {
 
         if(FD_ISSET(sockfd_m, &rfds)){
             len = sizeof(struct sockaddr_in);
-            recvfrom(sockfd_m, recvbuf, BUFSIZ, 0, (struct sockaddr*) &clAddr, &len);
+            recvfrom(sockfd_m, recvbuf, BUFLEN, 0, (struct sockaddr*) &clAddr, &len);
             if(recvbuf[0] == 'B' && recvbuf[1] == ':'){
                 char sendbuf[50] = {0};
                 strcpy(sendbuf, recvbuf + 2);
@@ -124,7 +127,7 @@ void handleMessages(void* arg) {
                     exit(1);
                 }
             }
-            else if(recvbuf[0] == 'G' && recvbuf[1] == ':'){
+            else if(recvbuf[0] == 'G' && recvbuf[1] == ':') { // Display the received group message
                 char* addr[20] = {0};
                 inet_ntop(AF_INET, clAddr.sin_addr.s_addr, addr, 20);
                 bucket_node *temp;
@@ -141,13 +144,13 @@ void handleMessages(void* arg) {
                 }
                 printf("Message recieved for group : %s\n", temp->key);
                 printf("%s", recvbuf + 2);
-            } else if(recvbuf[0] == 'F' && recvbuf[1] == ":") {
-                char msg[500] = "R:";
-
-                /* 
+            } else if(recvbuf[0] == 'F' && recvbuf[1] == ":") { // Handle the file list request message
+                /*
                     Message Format:
-                    R:client_ip:file1:file2:file3:...
+                    F:
                 */
+                
+                char msg[500] = "R:";
 
                 struct sockaddr_in ip;
                 socklen_t iplen = sizeof(ip);
@@ -167,7 +170,12 @@ void handleMessages(void* arg) {
                 if(sendto(sockfd_m, msg, strlen(msg), 0, (struct sockaddr*) &clAddr, len) == -1) {
                     printf("Error in sending filelist reply message.\n");
                 }
-            } else if(recvbuf[0] == 'R' && recvbuf[1] == ':') {
+            } else if(recvbuf[0] == 'R' && recvbuf[1] == ':') { // Add files received in message to filelist
+                /* 
+                    Message Format:
+                    R:client_ip:file1:file2:file3:...
+                */
+
                 char cl_ip[16] = {0};
                 strcpy(cl_ip, recvbuf + 2);
                 char* token = strtok(recvbuf, ":");
@@ -177,6 +185,68 @@ void handleMessages(void* arg) {
                     if(!has_key(filelist, token)) insert2(filelist, token, cl_ip);
                     token = strtok(NULL, ":");
                 }
+            } else if(recvbuf[0] == 'S' && recvbuf[1] == ':') {
+                /* If client has file requested in special message:
+                    - Send it to the requester
+                   If client doesn't have file requested in special message:
+                    - Forward this special message to all groups this client is a member of   
+                */
+
+                char fname[30];
+                char req_ip[16];
+                char* token = strtok(recvbuf, ":");
+                strcpy(fname, strtok(NULL, ":"));
+
+                if(has_key(filelist, fname)) {
+                    strcpy(req_ip, strtok(NULL, ":"));
+                    FILE *fptr;
+                    if((fptr = fopen(fname, "r")) == NULL) {
+                        printf("Error in opening file.\n");
+                        exit(1);
+                    }
+
+                    char data[BUFLEN] = "D:";
+                    char * line = NULL;
+                    size_t len = 0;
+                    ssize_t read;
+
+                    while ((read = getline(&line, &len, fptr)) != -1) {
+                        strcat(data, line);
+                    }
+
+                    close(fptr);
+
+                    struct sockaddr_in si_other;
+                    memset((char*) &si_other, 0, sizeof(si_other));
+                    si_other.sin_family = AF_INET;
+                    si_other.sin_port = htons(PORT);
+                    si_other.sin_addr.s_addr = inet_addr(req_ip);
+
+                    if(sendto(sockfd_m, data, strlen(data), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
+                        printf("Error in sending file data reply message.\n");
+                        exit(1);
+                    }
+
+                } else {
+                    for(int i = 0; i < grpip->capacity; ++i) {
+                        bucket_node* temp = grpip->buckets[i];
+                        while(temp) {
+                            group *dest_ip = (struct group*)malloc(sizeof(struct group));
+                            dest_ip = get(grpip, temp);
+
+                            struct sockaddr_in si_other;
+                            memset((char*) &si_other, 0, sizeof(si_other));
+                            si_other.sin_family = AF_INET;
+                            si_other.sin_port = htons(PORT);
+                            si_other.sin_addr.s_addr = inet_addr(dest_ip->val);
+                            if(sendto(sockfd_m, recvbuf, strlen(recvbuf), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
+                                printf("Error in forwarding data transfer special message.\n");
+                            }
+                            temp = temp->next;
+                        }
+                    }
+                }
+
             }
         }
         
@@ -213,7 +283,6 @@ int main() {
     pthread_t thread_id;
     pthread_args args = {sockfd_m, sockfd_b, grpip, filelist};
     pthread_create(&thread_id, NULL, handleMessages, (void*)&args);
-
 	
     int b;
     struct sockaddr_in my_addr;
@@ -286,7 +355,7 @@ int main() {
                 printf("Error in sending broadcast message.\n");
                 exit(1);
             }
-            char recvbuf[BUFSIZ] = {0};
+            char recvbuf[BUFLEN] = {0};
             struct sockaddr_in clAddr;
 
             socklen_t len = sizeof(struct sockaddr_in);
@@ -303,7 +372,7 @@ int main() {
                 retval = select(maxfd + 1, &rfds, NULL, NULL, &tv);
                 if(retval == -1 && errno == EINTR) continue;
                 if(retval == 0) break;
-                recvfrom(sockfd_b, recvbuf, BUFSIZ, 0, &clAddr, len);
+                recvfrom(sockfd_b, recvbuf, BUFLEN, 0, &clAddr, len);
 
                 char key[20] = {0};
                 int i;
@@ -396,11 +465,65 @@ int main() {
             char fname[20];
             printf("Enter file name to download: ");
             readLine(fname);
+            char msg[32] = "C:";
+            strcat(msg, fname);
 
             if(has_key(filelist, fname)) {
                 // File is present in local list
+                /*
+                    Message Format:
+                    C:filename
+                */
+
+                char* dest_ip = (char*)malloc(16);
+                dest_ip = get2(filelist, fname);
+
+                struct sockaddr_in si_other;
+                memset((char*) &si_other, 0, sizeof(si_other));
+                si_other.sin_family = AF_INET;
+                si_other.sin_port = htons(PORT);
+                si_other.sin_addr.s_addr = inet_addr(dest_ip);
+
+                if(sendto(sockfd_m, msg, strlen(msg), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
+                    printf("Error in sending file request message.\n");
+                    exit(1);
+                }
+
             } else {
                 // Send special message
+                /*
+                    Message Format:
+                    S:filename:local_ip
+
+                    If this special message is circulated in multiple groups, we need to keep track of the original requester of the file
+                */
+
+                struct sockaddr_in ip;
+                socklen_t iplen = sizeof(ip);
+                char cl_ip[16] = {0};
+                getsockname(sockfd_m, (struct sockaddr*)&ip, &iplen);
+                inet_ntop(AF_INET, &(ip.sin_addr), cl_ip, INET_ADDRSTRLEN);
+                strcat(msg, cl_ip);
+
+                for(int i = 0; i < grpip->capacity; ++i) {
+                    bucket_node* temp = grpip->buckets[i];
+                    while(temp) {
+                        char* dest_ip = (char*)malloc(16);
+                        dest_ip = get(grpip, temp);
+
+                        struct sockaddr_in si_other;
+                        memset((char*) &si_other, 0, sizeof(si_other));
+                        si_other.sin_family = AF_INET;
+                        si_other.sin_port = htons(PORT);
+                        si_other.sin_addr.s_addr = inet_addr(dest_ip);
+
+                        if(sendto(sockfd_m, msg, strlen(msg), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
+                            printf("Error in sending file transfer special message.\n");
+                            exit(1);
+                        }
+                        temp = temp->next;
+                    }
+                }
             }
 
         } else if(ch == 7) {
