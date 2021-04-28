@@ -206,7 +206,14 @@ void handleMessages(void* arg) {
                         exit(1);
                     }
 
+                    /*
+                        Message Format:
+                        D:filename:data
+                    */
+
                     char data[BUFLEN] = "D:";
+                    strcat(data, fname);
+                    strcat(data, ":");
                     char * line = NULL;
                     size_t len = 0;
                     ssize_t read;
@@ -247,6 +254,22 @@ void handleMessages(void* arg) {
                         }
                     }
                 }
+
+            } else if(recvbuf[0] == 'D' && recvbuf[1] == ':') {
+                // Save received files data
+                char fname[30] = {0};
+                char* token = strtok(recvbuf, ":");
+                strcpy(fname, strtok(NULL,  ":"));
+
+                FILE *fptr = fopen(fname, "w");
+                if(fptr == NULL) {
+                    printf("Error in writing data to file.\n");
+                    exit(1);
+                }
+
+                fprintf(fptr, "%s", strtok(NULL, ":"));
+
+                close(fptr);
 
             }
         }
