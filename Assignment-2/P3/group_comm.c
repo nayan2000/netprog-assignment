@@ -16,6 +16,7 @@ void readLine(char* msg) {
 		in = getc(stdin);
 		if(in != '\n') msg[i++] = in;
 	}
+    msg[i] = 0;
 }
 
 void genMulticastIP(char* ip) {

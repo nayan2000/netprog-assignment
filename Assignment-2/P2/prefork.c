@@ -70,7 +70,7 @@ void handle_request(int connfd){
 
     // printf("Client handle by %d\n", getpid());
     sleep(1);
-    // send(connfd, reply, strlen(reply), 0);
+    send(connfd, reply, strlen(reply), 0);
 }
 
 void main_child(int j, int fd, int listenfd, socklen_t addrlen){
@@ -82,7 +82,7 @@ void main_child(int j, int fd, int listenfd, socklen_t addrlen){
     // printf("Child %d : PID %ld starting\n", j, (long) getpid());
     for(int i = 0; i < maxRequestsPerChild; i++) {
         clilen = addrlen;
-        // connfd = accept(listenfd, cliaddr, &clilen);
+        connfd = accept(listenfd, cliaddr, &clilen);
         if(connfd == -1 && errno == EINTR) continue;
 
         write(fd, "b", 1);
@@ -133,10 +133,12 @@ int main(int argc, char **argv){
 
     maxIdleServers = atoi(argv[1]);
     minIdleServers = atoi(argv[2]);
-    maxRequestsPerChild = atoi(argv[3]); 
+    maxRequestsPerChild = atoi(argv[3]);
+
     cd = (child_details**)malloc(sizeof(child_details*) * (2*maxIdleServers + 33));
     for(int i = 0; i < 2*maxIdleServers + 33; i++)
         cd[i] = NULL;
+    
     pid_t ch;
     fd_set rset, masterset;
     FD_ZERO(&masterset);
@@ -225,7 +227,7 @@ int main(int argc, char **argv){
                 }
                 l++;
             }
-            if(--nsel == 0) break; 
+            if(FD_ISSET(cd[i]->pipefd, &rset) && --nsel == 0) break; 
         }
     }
 }
