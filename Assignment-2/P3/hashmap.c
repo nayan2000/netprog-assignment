@@ -55,6 +55,17 @@ void insert(hashmap *map, const char *key, group val){
 	map->buckets[loc] = n;
 }
 
+void insert2(hashmap *map, const char *key, const char *val){
+	size_t loc = hash(key, map->capacity);
+
+	bucket_node *n = (bucket_node*) malloc(sizeof(bucket_node));
+	strcpy(n->key, key);
+	strcpy(n->userip, val);
+	n->next = map->buckets[loc];
+
+	map->buckets[loc] = n;
+}
+
 bucket_node* get_bucket(hashmap *map, const char *key){
 	size_t loc = hash(key, map->capacity);
 

@@ -36,13 +36,44 @@ void sendGrpMsg(char* dest_ip, char msg[BUFLEN]) {
 	si_dest.sin_addr.s_addr = inet_addr(dest_ip);
 }
 
+/*
+    Message Formats:
+    B - Broadcast Message
+    G - Group Message
+    P - Poll Message
+    F - Filelist Request Message
+    R - Filelist Reply Message
+*/
+
 
 /*
 Use alarm signal for syncing files between group members
 */
+hashmap *grpip, *filelist;
+int sockfd_m;
 
 void syncfiles() {
+    for(int i = 0; i < grpip->capacity; ++i) {
+        bucket_node* temp = grpip->buckets[i];
+        while(temp != NULL) {
+            char* dest_ip = (char*)malloc(16);
+            dest_ip = get(grpip, temp->key);
 
+            char msg[2] = "F:";
+
+            struct sockaddr_in si_other;
+            memset((char*) &si_other, 0, sizeof(si_other));
+            si_other.sin_family = AF_INET;
+            si_other.sin_port = htons(PORT);
+            si_other.sin_addr.s_addr = inet_addr(dest_ip);
+
+            if(sendto(sockfd_m, msg, strlen(msg), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
+                printf("Error in sending group message.\n");
+                exit(1);
+            }
+            temp = temp->next;
+        }
+    }
     alarm(60);
 }
 
@@ -78,7 +109,7 @@ void handleMessages(void* arg) {
 
         if(FD_ISSET(sockfd_m, &rfds)){
             len = sizeof(struct sockaddr_in);
-            recvfrom(sockfd_m, recvbuf, BUFSIZ, 0, &clAddr, len);
+            recvfrom(sockfd_m, recvbuf, BUFSIZ, 0, (struct sockaddr*) &clAddr, &len);
             if(recvbuf[0] == 'B' && recvbuf[1] == ':'){
                 char sendbuf[50] = {0};
                 strcpy(sendbuf, recvbuf + 2);
@@ -110,6 +141,42 @@ void handleMessages(void* arg) {
                 }
                 printf("Message recieved for group : %s\n", temp->key);
                 printf("%s", recvbuf + 2);
+            } else if(recvbuf[0] == 'F' && recvbuf[1] == ":") {
+                char msg[500] = "R:";
+
+                /* 
+                    Message Format:
+                    R:client_ip:file1:file2:file3:...
+                */
+
+                struct sockaddr_in ip;
+                socklen_t iplen = sizeof(ip);
+                char cl_ip[16] = {0};
+                getsockname(sockfd_m, (struct sockaddr*)&ip, &iplen);
+                inet_ntop(AF_INET, &(ip.sin_addr), cl_ip, INET_ADDRSTRLEN);
+                strcat(msg, cl_ip);
+                strcat(msg, ":");
+                for(int i = 0; i < filelist->capacity; ++i) {
+                    bucket_node* temp = filelist->buckets[i];
+                    while(temp != NULL) {
+                        strcat(msg, temp->key);
+                        strcat(msg, ":");
+                        temp = temp->next;
+                    }
+                }
+                if(sendto(sockfd_m, msg, strlen(msg), 0, (struct sockaddr*) &clAddr, len) == -1) {
+                    printf("Error in sending filelist reply message.\n");
+                }
+            } else if(recvbuf[0] == 'R' && recvbuf[1] == ':') {
+                char cl_ip[16] = {0};
+                strcpy(cl_ip, recvbuf + 2);
+                char* token = strtok(recvbuf, ":");
+                strcpy(cl_ip, strtok(NULL, ":"));
+                token = strtok(NULL, ":");
+                while(token) {
+                    insert2(filelist, token, cl_ip);
+                    token = strtok(NULL, ":");
+                }
             }
         }
         
@@ -119,7 +186,6 @@ void handleMessages(void* arg) {
 int main() {
     signal(SIGALRM, syncfiles);
     srand(time(0));
-    int sockfd_m;
 	char buf[BUFLEN] = {0};
 	char message[BUFLEN] = {0};
 
@@ -137,7 +203,6 @@ int main() {
 
     setsockopt(sockfd_b, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on));
 
-    hashmap *grpip, *filelist;
     grpip = (hashmap*)malloc(sizeof(hashmap));
     filelist = (hashmap*)malloc(sizeof(hashmap));
     create_hm(grpip, MAX_GROUP_LIMIT);
@@ -343,6 +408,8 @@ int main() {
             for(int j = 0; j < i + 1; ++j) {
                 strcat(msg, options[j]);
             }
+
+            printf("%s\n", msg);
 
             char* dest_ip = (char*)malloc(16);
             dest_ip = get(grpip, gname);

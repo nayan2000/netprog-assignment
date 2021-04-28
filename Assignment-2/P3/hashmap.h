@@ -9,8 +9,10 @@ typedef struct group{
 	char val[16];
 	bool is_member;
 }group;
+
 typedef struct bucket_node_t {
 	char key[20];
+	char userip[16];
 	group val;
 	struct bucket_node_t *next;
 } bucket_node;
