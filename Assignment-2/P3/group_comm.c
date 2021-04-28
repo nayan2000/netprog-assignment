@@ -60,7 +60,7 @@ void syncfiles() {
     for(int i = 0; i < grpip->capacity; ++i) {
         bucket_node* temp = grpip->buckets[i];
         while(temp != NULL) {
-            char* dest_ip = (char*)malloc(16);
+            group* dest_ip = (struct group*)malloc(sizeof(struct group));
             dest_ip = get(grpip, temp->key);
 
             char msg[2] = "F:";
@@ -69,7 +69,7 @@ void syncfiles() {
             memset((char*) &si_other, 0, sizeof(si_other));
             si_other.sin_family = AF_INET;
             si_other.sin_port = htons(PORT);
-            si_other.sin_addr.s_addr = inet_addr(dest_ip);
+            si_other.sin_addr.s_addr = inet_addr(dest_ip->val);
 
             if(sendto(sockfd_m, msg, strlen(msg), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
                 printf("Error in sending group message.\n");
@@ -89,7 +89,7 @@ typedef struct pthread_args{
 }pthread_args;
 
 // Running on separate thread
-void handleMessages(void* arg) {
+static void* handleMessages(void* arg) {
     pthread_args* args = (pthread_args*)arg;
     int sockfd_m = args->sockfd_m;
     int sockfd_b = args->sockfd_b;
@@ -129,8 +129,8 @@ void handleMessages(void* arg) {
                 }
             }
             else if(recvbuf[0] == 'G' && recvbuf[1] == ':') { // Display the received group message
-                char* addr[20] = {0};
-                inet_ntop(AF_INET, clAddr.sin_addr.s_addr, addr, 20);
+                char addr[20] = {0};
+                inet_ntop(AF_INET, &(clAddr.sin_addr.s_addr), addr, 20);
                 bucket_node *temp;
                 for(int i = 0; i < MAX_GROUP_LIMIT; i++){
                     if(grpip->buckets[i]){
@@ -145,7 +145,7 @@ void handleMessages(void* arg) {
                 }
                 printf("Message recieved for group : %s\n", temp->key);
                 printf("%s", recvbuf + 2);
-            } else if(recvbuf[0] == 'F' && recvbuf[1] == ":") { // Handle the file list request message
+            } else if(recvbuf[0] == 'F' && recvbuf[1] == ':') { // Handle the file list request message
                 /*
                     Message Format:
                     F:
@@ -222,7 +222,7 @@ void handleMessages(void* arg) {
                         strcat(data, line);
                     }
 
-                    close(fptr);
+                    fclose(fptr);
 
                     struct sockaddr_in si_other;
                     memset((char*) &si_other, 0, sizeof(si_other));
@@ -240,7 +240,7 @@ void handleMessages(void* arg) {
                         bucket_node* temp = grpip->buckets[i];
                         while(temp) {
                             group *dest_ip = (struct group*)malloc(sizeof(struct group));
-                            dest_ip = get(grpip, temp);
+                            dest_ip = get(grpip, temp->key);
 
                             struct sockaddr_in si_other;
                             memset((char*) &si_other, 0, sizeof(si_other));
@@ -269,7 +269,7 @@ void handleMessages(void* arg) {
 
                 fprintf(fptr, "%s", strtok(NULL, ":"));
 
-                close(fptr);
+                fclose(fptr);
 
             }
         }
@@ -306,20 +306,21 @@ int main() {
     // printf("%s\n", genMulticastIP());
     pthread_t thread_id;
     pthread_args args = {sockfd_m, sockfd_b, grpip, filelist};
-    pthread_create(&thread_id, NULL, handleMessages, (void*)&args);
+    pthread_create(&thread_id, NULL, &handleMessages, (void*)&args);
 	
     int b;
     struct sockaddr_in my_addr;
     bzero(&my_addr, sizeof(struct sockaddr_in));
     my_addr.sin_family = AF_INET;
     my_addr.sin_port = htons(PORT);
-    my_addr.sin_addr.s_addr = inet_addr(INADDR_ANY);
+    printf("Here\n");
+    my_addr.sin_addr.s_addr = inet_addr("localhost");
+    printf("Here\n");
     if((b = bind(sockfd_m, (struct sockaddr*)&my_addr, sizeof(struct sockaddr_in))) < 0){
-        perror(RED"BIND ERROR"RESET);
+        perror("BIND ERROR");
         exit(EXIT_FAILURE);
     }
 
-    
 
     int ch = 0;
     while(1) {
@@ -396,7 +397,7 @@ int main() {
                 retval = select(maxfd + 1, &rfds, NULL, NULL, &tv);
                 if(retval == -1 && errno == EINTR) continue;
                 if(retval == 0) break;
-                recvfrom(sockfd_b, recvbuf, BUFLEN, 0, &clAddr, len);
+                recvfrom(sockfd_b, recvbuf, BUFLEN, 0, (struct sockaddr*) &clAddr, &len);
 
                 char key[20] = {0};
                 int i;
@@ -413,7 +414,7 @@ int main() {
                 if(!has_key(grpip, key)){
                     insert(grpip, key, g);
                 }
-                printf(YELLOW"Group : %s , Group IP : %s\n"RESET, key, g.val[i]);
+                printf("Group : %s , Group IP : %s\n", key, g.val);
             }
 
         }else if(ch == 3){
@@ -445,14 +446,14 @@ int main() {
             printf("Enter the message: ");
             readLine(txtmsg);
             strcat(msg, txtmsg);
-            char* dest_ip = (char*)malloc(16);
+            group* dest_ip = (struct group*)malloc(sizeof(struct group));
             dest_ip = get(grpip, gname);
 
             struct sockaddr_in si_other;
             memset((char*) &si_other, 0, sizeof(si_other));
             si_other.sin_family = AF_INET;
             si_other.sin_port = htons(PORT);
-            si_other.sin_addr.s_addr = inet_addr(dest_ip);
+            si_other.sin_addr.s_addr = inet_addr(dest_ip->val);
 
             if(sendto(sockfd_m, msg, strlen(msg), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
                 printf("Error in sending group message.\n");
@@ -532,14 +533,14 @@ int main() {
                 for(int i = 0; i < grpip->capacity; ++i) {
                     bucket_node* temp = grpip->buckets[i];
                     while(temp) {
-                        char* dest_ip = (char*)malloc(16);
-                        dest_ip = get(grpip, temp);
+                        group* dest_ip = (struct group*)malloc(sizeof(struct group));
+                        dest_ip = get(grpip, temp->key);
 
                         struct sockaddr_in si_other;
                         memset((char*) &si_other, 0, sizeof(si_other));
                         si_other.sin_family = AF_INET;
                         si_other.sin_port = htons(PORT);
-                        si_other.sin_addr.s_addr = inet_addr(dest_ip);
+                        si_other.sin_addr.s_addr = inet_addr(dest_ip->val);
 
                         if(sendto(sockfd_m, msg, strlen(msg), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
                             printf("Error in sending file transfer special message.\n");
@@ -584,14 +585,14 @@ int main() {
 
             printf("%s\n", msg);
 
-            char* dest_ip = (char*)malloc(16);
+            group* dest_ip = (struct group*)malloc(sizeof(struct group));
             dest_ip = get(grpip, gname);
 
             struct sockaddr_in si_other;
             memset((char*) &si_other, 0, sizeof(si_other));
             si_other.sin_family = AF_INET;
             si_other.sin_port = htons(PORT);
-            si_other.sin_addr.s_addr = inet_addr(dest_ip);
+            si_other.sin_addr.s_addr = inet_addr(dest_ip->val);
 
             if(sendto(sockfd_m, msg, strlen(msg), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
                 printf("Error in sending group poll.\n");

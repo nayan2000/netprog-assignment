@@ -94,7 +94,7 @@ char* get2(hashmap *map, const char *key){
 
 	while(ptr){
 		if(!strcmp(ptr->key, key))
-			return &(ptr->val);
+			return (ptr->userip);
 
 		ptr = ptr->next;
 	}
