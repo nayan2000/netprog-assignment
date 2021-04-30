@@ -50,6 +50,3 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
-
-P3/client
-P3/server
